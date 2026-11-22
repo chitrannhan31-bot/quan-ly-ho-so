@@ -1,6 +1,3097 @@
-apiKey: "AIzaSyCZw0DGkFZQbZjayrlsxTB11oKYg6B59Qk",
-  authDomain: "teamchi-1e76b.firebaseapp.com",
-  projectId: "teamchi-1e76b",
-  storageBucket: "teamchi-1e76b.firebasestorage.app",
-  messagingSenderId: "358290363086",
-  appId: "1:358290363086:web:b9dcf786d4ee9b3338b69f"
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TEAM CHI • LUẬT VIỆT PHÚ - Quản Lý Hồ Sơ Pháp Lý</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- SheetJS (xlsx) để nhập và xuất file báo cáo Excel (.xlsx) -->
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f8fafc;
+      color: #0f172a;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+</head>
+<body class="w-full min-h-screen bg-slate-50 flex flex-col antialiased selection:bg-blue-900 selection:text-white">
+
+  <!-- ==================== 0. MÀN HÌNH KHÓA MẬT KHẨU NỘI BỘ TEAM ==================== -->
+  <div id="teamLockOverlay" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+      <div class="bg-slate-900 text-white px-6 py-5 text-center space-y-2">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-700 flex items-center justify-center mx-auto shadow-md">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h2 class="text-lg font-extrabold tracking-tight">TEAM CHI • LUẬT VIỆT PHÚ</h2>
+        <p class="text-xs text-slate-400">Hệ thống quản lý hồ sơ pháp lý nội bộ</p>
+      </div>
+
+      <form id="teamLockForm" class="p-6 space-y-4">
+        <div>
+          <label for="lockUserSelect" class="block text-xs font-bold text-slate-700 mb-1.5">
+            Chọn tên nhân sự thao tác
+          </label>
+          <select id="lockUserSelect"
+            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm font-bold text-slate-900 focus:bg-white focus:border-blue-600 outline-none cursor-pointer">
+            <option value="Chi Trần">Chi Trần (Leader)</option>
+            <option value="Hà">Hà</option>
+            <option value="Tuấn Minh">Tuấn Minh</option>
+            <option value="Nhân viên khác">Nhân viên khác</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="teamPasscodeInput" class="block text-xs font-bold text-slate-700 mb-1.5">
+            Mật khẩu truy cập nội bộ Team
+          </label>
+          <input id="teamPasscodeInput" type="password" required autocomplete="current-password"
+            placeholder="Nhập mật khẩu (mặc định: lvp2026)..."
+            class="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-300 text-sm font-semibold text-slate-900 focus:bg-white focus:border-blue-600 outline-none" />
+          <p id="teamLockErrorMsg" class="hidden text-xs font-bold text-red-600 mt-1.5">
+            Mật khẩu không chính xác. Vui lòng kiểm tra lại!
+          </p>
+        </div>
+
+        <button id="unlockSubmitBtn" type="submit"
+          class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-extrabold shadow-md transition cursor-pointer">
+          Mở Khóa &amp; Vào Làm Việc
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== 1. TOP HEADER BAR (FULL WIDTH DESKTOP) ==================== -->
+  <header class="sticky top-0 z-30 w-full bg-slate-900 text-white px-4 sm:px-6 py-3.5 shadow-md border-b border-slate-800">
+    <div class="w-full flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Bên Trái: Logo Badge + Tiêu Đề Hệ Thống -->
+      <div class="flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-700 flex items-center justify-center shadow-md shrink-0">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <h1 class="text-base sm:text-lg font-extrabold tracking-tight text-white">
+              TEAM CHI • LUẬT VIỆT PHÚ
+            </h1>
+            <span id="syncStatusPill" class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>Sẵn sàng • 0 hồ sơ</span>
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 font-medium">
+            Hệ Thống Quản Lý Hồ Sơ Pháp Lý &amp; Tiến Độ Công Việc
+          </p>
+        </div>
+      </div>
+
+      <!-- Bên Phải: Bộ Chọn Người Thao Tác + Chuông Thông Báo + Thêm Hồ Sơ + Nhập/Xuất Excel -->
+      <div class="flex items-center gap-2.5 sm:gap-3 ml-auto flex-wrap">
+
+        <!-- Active User Selector -->
+        <div class="flex items-center bg-slate-800 border border-slate-700 rounded-xl px-3 py-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2 shrink-0"></span>
+          <label for="activeUserSelect" class="text-xs text-slate-400 mr-2 font-medium whitespace-nowrap">
+            Đang thao tác:
+          </label>
+          <select id="activeUserSelect" aria-label="Chọn nhân sự đang thao tác"
+            class="bg-transparent text-xs sm:text-sm font-bold text-white focus:outline-none cursor-pointer pr-1">
+            <option value="Chi Trần" class="bg-slate-900 text-white">Chi Trần (Leader)</option>
+            <option value="Hà" class="bg-slate-900 text-white">Hà</option>
+            <option value="Tuấn Minh" class="bg-slate-900 text-white">Tuấn Minh</option>
+            <option value="Nhân viên khác" class="bg-slate-900 text-white">Nhân viên khác</option>
+          </select>
+        </div>
+
+        <!-- Notification Bell Icon + Dropdown -->
+        <div class="relative">
+          <button id="notifBellBtn" type="button" title="Thông báo, Việc hôm nay & Lịch dự kiến KQ"
+            class="relative p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 transition cursor-pointer">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <span id="notifBadgeCount"
+              class="hidden absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 rounded-full bg-red-600 text-white text-[11px] font-extrabold flex items-center justify-center shadow ring-2 ring-slate-900">
+              0
+            </span>
+          </button>
+
+          <!-- Dropdown Panel Thông Báo -->
+          <div id="notifPanel"
+            class="hidden absolute right-0 mt-2 w-[380px] sm:w-[450px] max-w-[94vw] bg-white text-slate-800 rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50">
+            <div class="bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-sm">Thông Báo, Việc Hôm Nay &amp; Lịch Dự Kiến</span>
+                <span id="notifHeaderCount" class="px-2 py-0.5 text-xs font-extrabold bg-amber-600 text-white rounded-full">0</span>
+              </div>
+              <button id="closeNotifBtn" type="button" class="text-slate-400 hover:text-white p-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div id="notifListContainer" class="max-h-[460px] overflow-y-auto divide-y divide-slate-100">
+              <!-- Nội dung thông báo render tự động -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Primary Button: + Thêm Hồ Sơ Mới -->
+        <button id="openAddModalBtn" type="button"
+          class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow-sm transition cursor-pointer">
+          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+          <span>+ Thêm Hồ Sơ Mới</span>
+        </button>
+
+        <!-- Hidden File Input & Button: Nhập Excel (.xlsx / .csv) từ Google Sheet -->
+        <input id="importExcelFileInput" type="file" accept=".xlsx,.xls,.csv" class="hidden" />
+        <button id="importExcelBtn" type="button" title="Tải file .xlsx từ Google Sheet và nạp đồng bộ vào App"
+          class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white text-xs sm:text-sm font-bold shadow-sm transition cursor-pointer">
+          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          <span>Nhập Excel</span>
+        </button>
+
+        <!-- Prominent Green Button: Xuất Báo Cáo Excel -->
+        <button id="exportExcelBtn" type="button"
+          class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs sm:text-sm font-bold shadow-sm transition cursor-pointer">
+          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span>Xuất Báo Cáo Excel</span>
+        </button>
+
+        <!-- Lock Screen Button -->
+        <button id="lockScreenBtn" type="button" title="Khóa màn hình làm việc"
+          class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </button>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== 2. MAIN WORKSPACE CONTAINER ==================== -->
+  <main class="w-full flex-1 px-4 sm:px-6 py-4 space-y-3.5">
+
+    <!-- 2.1. THANH CÔNG CỤ TỐI GIẢN DUY NHẤT (1 DÒNG GỌN GÀNG, THOÁNG MẮT) -->
+    <section aria-label="Thanh điều hướng và bộ lọc"
+      class="bg-white p-3 rounded-2xl shadow-xs border border-slate-200 flex flex-wrap items-center justify-between gap-2.5">
+      
+      <!-- Bên Trái: 2 Tab Duy Nhất (Tất cả hồ sơ & Việc hôm nay) -->
+      <div class="flex items-center gap-1.5 shrink-0">
+        <button id="mainTabTasks" type="button" data-main-tab="tasks"
+          class="main-tab-btn inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-slate-900 text-white shadow-2xs transition cursor-pointer">
+          <span>📋 Tất cả hồ sơ</span>
+          <span id="tabBadgeTasks" class="px-2 py-0.5 rounded-full bg-blue-500 text-white text-[11px] font-extrabold">0</span>
+        </button>
+
+        <button id="mainTabDaily" type="button" data-main-tab="daily"
+          class="main-tab-btn inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-amber-50 text-amber-950 border border-amber-200 hover:bg-amber-100 transition cursor-pointer">
+          <span>⚡ Việc hôm nay</span>
+          <span id="tabBadgeDaily" class="px-2 py-0.5 rounded-full bg-amber-600 text-white text-[11px] font-extrabold">0</span>
+        </button>
+      </div>
+
+      <!-- Bên Phải: Ô Tìm Kiếm + 3 Bộ Lọc Gọn + Đặt Lại -->
+      <div class="flex flex-1 flex-wrap items-center justify-end gap-2 min-w-[280px]">
+        
+        <!-- Ô Tìm Kiếm + Nút Tìm -->
+        <div class="flex items-center gap-1.5 flex-1 min-w-[230px] max-w-md">
+          <div class="relative flex-1">
+            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input id="searchInput" type="text"
+              placeholder="Tìm Tên DN, MST, Bước triển khai, SĐT..."
+              class="w-full pl-9 pr-7 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:bg-white focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 outline-none transition" />
+            <button id="clearSearchBtn" type="button" title="Xóa từ khóa"
+              class="hidden absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 cursor-pointer">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <button id="execSearchBtn" type="button"
+            class="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white text-xs font-bold shadow-2xs transition shrink-0 cursor-pointer">
+            🔍 Tìm
+          </button>
+        </div>
+
+        <!-- Bộ Lọc 1: Phụ Trách -->
+        <select id="filterStaff" aria-label="Lọc theo Phụ Trách"
+          class="px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 focus:bg-white focus:border-blue-600 outline-none cursor-pointer">
+          <option value="all">Phụ trách: Tất cả</option>
+          <option value="Chi Trần">Chi Trần</option>
+          <option value="Hà">Hà</option>
+          <option value="Tuấn Minh">Tuấn Minh</option>
+          <option value="Nhân viên khác">Nhân viên khác</option>
+        </select>
+
+        <!-- Bộ Lọc 2: Trạng Thái -->
+        <select id="filterStatus" aria-label="Lọc theo Trạng Thái"
+          class="px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 focus:bg-white focus:border-blue-600 outline-none cursor-pointer">
+          <option value="all">Trạng thái: Tất cả</option>
+          <option value="1. Soạn hồ sơ">1. Soạn hồ sơ</option>
+          <option value="2. Chờ khách ký">2. Chờ khách ký</option>
+          <option value="3. Nộp hồ sơ">3. Nộp hồ sơ</option>
+          <option value="4. Đã nộp - Chờ KQ">4. Đã nộp - Chờ KQ</option>
+          <option value="6. Đã chấp thuận">6. Đã chấp thuận</option>
+          <option value="Chờ làm hồ sơ lưu">Chờ làm hồ sơ lưu</option>
+          <option value="8. Hủy">8. Hủy</option>
+        </select>
+
+        <!-- Bộ Lọc 3: Lọc Đặc Biệt -->
+        <select id="filterSpecial" aria-label="Lọc đặc biệt"
+          class="px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 focus:bg-white focus:border-blue-600 outline-none cursor-pointer">
+          <option value="all">Lọc đặc biệt: Tất cả</option>
+          <option value="daily_today">⚡ Có Việc Cần Làm Hôm Nay</option>
+          <option value="deadline_cnvg">⏰ Hạn KQ &amp; Tờ khai CNVG</option>
+          <option value="unpaid">💰 Chưa thu đủ phí</option>
+          <option value="no_vat">🧾 Chưa xuất VAT</option>
+          <option value="storage_contract">📁 Chờ lưu trữ &amp; Thu hồi HĐ</option>
+        </select>
+
+        <!-- Nút Đặt Lại & Đếm Kết Quả -->
+        <button id="resetFiltersBtn" type="button" title="Đặt lại toàn bộ bộ lọc"
+          class="px-2.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition cursor-pointer shrink-0">
+          ↺ Đặt lại
+        </button>
+
+        <span id="filteredResultLabel" class="text-xs font-semibold text-slate-500 whitespace-nowrap pl-1">
+          <strong class="text-slate-900">0</strong> / 0
+        </span>
+      </div>
+    </section>
+
+    <!-- 2.2. KHÔNG GIAN HIỂN THỊ CHÍNH (2 TAB GỌN NHẸ) -->
+    <section id="workspaceDisplayArea" class="w-full">
+      
+      <!-- Empty State -->
+      <div id="emptyStateBox" class="hidden bg-white rounded-2xl p-14 text-center border border-slate-200 shadow-xs">
+        <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+        <h3 id="emptyStateTitle" class="text-base font-extrabold text-slate-800">Không tìm thấy hồ sơ phù hợp</h3>
+        <p id="emptyStateDesc" class="text-sm text-slate-500 mt-1">Bấm "↺ Đặt lại" để hiển thị lại toàn bộ hồ sơ của Team Chi.</p>
+      </div>
+
+      <!-- ==================== TAB 1: BẢNG CÔNG VIỆC CHÍNH 5 CỘT THOÁNG MẮT ==================== -->
+      <div id="tabPanelTasks" class="w-full">
+        <div id="desktopTableView" class="w-full bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
+          <div class="w-full overflow-x-auto max-h-[calc(100vh-165px)]">
+            <table class="w-full text-left border-collapse min-w-[920px]">
+              <thead class="sticky top-0 z-20 bg-slate-900 text-white text-xs font-bold uppercase tracking-wider border-b border-slate-800">
+                <tr>
+                  <th class="py-3.5 px-3 text-center w-14">STT</th>
+                  <th class="py-3.5 px-3.5 w-[24%]">Doanh Nghiệp &amp; MST</th>
+                  <th class="py-3.5 px-3.5 w-[31%]">Nội Dung &amp; Bước Triển Khai Tiếp</th>
+                  <th class="py-3.5 px-3 w-[19%]">Phụ Trách &amp; Trạng Thái</th>
+                  <th class="py-3.5 px-3.5 w-[26%]">Việc Hôm Nay &amp; Nhắc Nhở</th>
+                </tr>
+              </thead>
+              <tbody id="desktopTableBody" class="divide-y divide-slate-200 text-sm">
+                <!-- Dữ liệu render bằng JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== TAB 2: VIỆC CẦN LÀM TRONG NGÀY (GỌN 1 DÒNG / HỒ SƠ) ==================== -->
+      <div id="tabPanelDaily" class="hidden w-full space-y-3">
+        
+        <!-- Thanh Điều Khiển & Thêm Nhanh Việc Cần Làm Trong Ngày -->
+        <div class="bg-white p-3.5 rounded-2xl border border-amber-300 shadow-xs space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2.5">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="px-2.5 py-1 rounded-lg bg-amber-500 text-white text-xs font-extrabold">⚡ VIỆC HÔM NAY</span>
+              <div class="inline-flex items-center rounded-xl bg-slate-100 p-1 border border-slate-200">
+                <button type="button" data-daily-staff-filter="all"
+                  class="daily-staff-pill px-3 py-1 rounded-lg text-xs font-extrabold bg-amber-600 text-white transition cursor-pointer">
+                  Cả Team (<span id="dailyCountAll">0</span>)
+                </button>
+                <button type="button" data-daily-staff-filter="mine"
+                  class="daily-staff-pill px-3 py-1 rounded-lg text-xs font-semibold text-slate-700 hover:bg-white transition cursor-pointer">
+                  Việc của tôi (<span id="dailyCountMine">0</span>)
+                </button>
+                <button type="button" data-daily-staff-filter="Chi Trần"
+                  class="daily-staff-pill px-3 py-1 rounded-lg text-xs font-semibold text-slate-700 hover:bg-white transition cursor-pointer">
+                  Chi Trần
+                </button>
+                <button type="button" data-daily-staff-filter="Hà"
+                  class="daily-staff-pill px-3 py-1 rounded-lg text-xs font-semibold text-slate-700 hover:bg-white transition cursor-pointer">
+                  Hà
+                </button>
+                <button type="button" data-daily-staff-filter="Tuấn Minh"
+                  class="daily-staff-pill px-3 py-1 rounded-lg text-xs font-semibold text-slate-700 hover:bg-white transition cursor-pointer">
+                  Tuấn Minh
+                </button>
+              </div>
+            </div>
+
+            <span class="text-xs text-slate-500 font-medium">
+              Bấm <strong class="text-emerald-700">✓ Xong việc ngày</strong> để tự động lưu vào Nhật Ký Tiến Độ
+            </span>
+          </div>
+
+          <!-- Form Giao / Thêm Nhanh Việc Cần Làm Trong Ngày -->
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-2 pt-2.5 border-t border-slate-100 items-center">
+            <div class="md:col-span-5">
+              <select id="quickDailyTaskSelect" aria-label="Chọn hồ sơ doanh nghiệp"
+                class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs font-semibold text-slate-800 focus:bg-white focus:border-amber-500 outline-none">
+                <option value="">-- Chọn hồ sơ cần thêm việc trong ngày --</option>
+              </select>
+            </div>
+            <div class="md:col-span-5">
+              <input id="quickDailyTaskInput" type="text"
+                placeholder="Nhập nội dung việc cần làm hôm nay cho hồ sơ đã chọn..."
+                class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs text-slate-900 focus:bg-white focus:border-amber-500 outline-none" />
+            </div>
+            <div class="md:col-span-2">
+              <button id="quickAddDailyBtn" type="button"
+                class="w-full px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-extrabold shadow-2xs transition cursor-pointer">
+                + Thêm Việc Ngày
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bảng Danh Sách Việc Cần Làm Trong Ngày (Gọn 1 Dòng / Hồ Sơ) -->
+        <div class="w-full bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
+          <div class="w-full overflow-x-auto max-h-[calc(100vh-275px)]">
+            <table class="w-full text-left border-collapse">
+              <thead class="sticky top-0 z-10 bg-amber-950 text-amber-50 text-xs font-bold uppercase tracking-wider">
+                <tr>
+                  <th class="py-3 px-3 text-center w-14">STT</th>
+                  <th class="py-3 px-3 w-32">Phụ Trách</th>
+                  <th class="py-3 px-3 min-w-[230px]">Doanh Nghiệp &amp; MST</th>
+                  <th class="py-3 px-3 min-w-[260px]">Việc Cần Làm Trong Ngày</th>
+                  <th class="py-3 px-3 min-w-[240px]">Các Bước Triển Khai Tiếp Theo</th>
+                  <th class="py-3 px-3 w-44">Trạng Thái</th>
+                  <th class="py-3 px-3 text-right w-48">Thao Tác</th>
+                </tr>
+              </thead>
+              <tbody id="dailyCompactTableBody" class="divide-y divide-slate-200 text-xs sm:text-[13px]">
+                <!-- Render tự động bằng JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ==================== 3. RIGHT SLIDE-OVER DETAIL & AUTO-LOG DRAWER ==================== -->
+  <div id="drawerBackdrop" class="hidden fixed inset-0 bg-slate-950/50 backdrop-blur-2xs z-40 transition-opacity"></div>
+  <aside id="detailDrawer"
+    class="fixed top-0 right-0 h-full w-[580px] max-w-full bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 ease-out flex flex-col border-l border-slate-200">
+    
+    <!-- Header Drawer -->
+    <div class="bg-slate-900 text-white px-6 py-4 flex items-start justify-between gap-3 shrink-0">
+      <div class="min-w-0">
+        <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+          <span id="drawerSttChip" class="px-2.5 py-0.5 rounded-md bg-blue-600 text-white text-xs font-extrabold">STT #1</span>
+          <button id="drawerCopyMstBtn" type="button" title="Sao chép Mã số thuế"
+            class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono transition cursor-pointer">
+            <span id="drawerMstChip">MST: ---</span>
+            <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+          </button>
+        </div>
+        <h2 id="drawerTitle" class="text-base sm:text-lg font-extrabold text-white leading-snug break-words">
+          Tên Doanh Nghiệp
+        </h2>
+      </div>
+      <button id="closeDrawerBtn" type="button"
+        class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition shrink-0 cursor-pointer">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Body Drawer -->
+    <div class="flex-1 overflow-y-auto p-6 space-y-5 bg-slate-50">
+
+      <!-- KHỐI A: NHẬT KÝ TIẾN ĐỘ TỰ ĐỘNG & NHẬP NHANH -->
+      <div class="bg-white p-4 rounded-2xl border border-blue-200 shadow-2xs space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-extrabold uppercase tracking-wider text-blue-900 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-blue-600"></span>
+            Nhật Ký Tiến Độ (Tự Động Ghi Lịch Sử)
+          </h3>
+          <button id="toggleRawLogBtn" type="button" class="text-xs font-semibold text-blue-600 hover:underline cursor-pointer">
+            Chỉnh sửa toàn văn
+          </button>
+        </div>
+
+        <!-- Quick Log Input Box: 2 Ô (Ngày + Công việc trong ngày) -->
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+          <div class="sm:col-span-4">
+            <label for="manualLogDate" class="sr-only">Ngày thực hiện</label>
+            <input id="manualLogDate" type="date"
+              class="w-full px-2.5 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs font-bold text-slate-900 focus:bg-white focus:border-blue-600 outline-none" />
+          </div>
+          <div class="sm:col-span-5">
+            <label for="manualLogInput" class="sr-only">Công việc trong ngày</label>
+            <input id="manualLogInput" type="text"
+              placeholder="Công việc trong ngày..."
+              class="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-300 text-xs sm:text-sm text-slate-900 focus:bg-white focus:border-blue-600 outline-none" />
+          </div>
+          <div class="sm:col-span-3">
+            <button id="addManualLogBtn" type="button"
+              class="w-full px-3 py-2 rounded-xl bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold transition cursor-pointer whitespace-nowrap">
+              + Ghi Nhật Ký
+            </button>
+          </div>
+        </div>
+
+        <!-- Danh sách các dòng nhật ký -->
+        <div id="drawerLogList" class="space-y-2 max-h-52 overflow-y-auto pr-1">
+          <!-- Render từng dòng nhật ký -->
+        </div>
+
+        <!-- Textarea sửa thủ công khi cần -->
+        <textarea id="drawerRawLogTextarea" rows="4"
+          class="hidden w-full p-3 rounded-xl bg-slate-50 border border-slate-300 text-xs font-mono text-slate-800 focus:bg-white focus:border-blue-600 outline-none"></textarea>
+      </div>
+
+      <!-- KHỐI B: BIỂU MẪU CHỈNH SỬA ĐẦY ĐỦ THÔNG TIN HỒ SƠ -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-4">
+        <h3 class="text-xs font-extrabold uppercase tracking-wider text-slate-700">
+          Thông Tin Chi Tiết Hồ Sơ Pháp Lý
+        </h3>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold text-slate-600 mb-1">Tên Doanh Nghiệp / Nhãn Hiệu *</label>
+            <input id="editTenDN" type="text"
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold text-slate-900 focus:border-blue-600 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Mã Số Thuế / Số Đơn</label>
+            <input id="editMST" type="text"
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-mono text-slate-900 focus:border-blue-600 outline-none" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Nhân Sự Phụ Trách</label>
+            <select id="editPhuTrach"
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:border-blue-600 outline-none cursor-pointer">
+              <option value="Chi Trần">Chi Trần</option>
+              <option value="Hà">Hà</option>
+              <option value="Tuấn Minh">Tuấn Minh</option>
+              <option value="Nhân viên khác">Nhân viên khác</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Trạng Thái Xử Lý (Tự ghi Log)</label>
+            <select id="editTrangThai"
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:border-blue-600 outline-none cursor-pointer">
+              <option value="1. Soạn hồ sơ">1. Soạn hồ sơ</option>
+              <option value="2. Chờ khách ký">2. Chờ khách ký</option>
+              <option value="3. Nộp hồ sơ">3. Nộp hồ sơ</option>
+              <option value="4. Đã nộp - Chờ KQ">4. Đã nộp - Chờ KQ</option>
+              <option value="6. Đã chấp thuận">6. Đã chấp thuận</option>
+              <option value="Chờ làm hồ sơ lưu">Chờ làm hồ sơ lưu</option>
+              <option value="8. Hủy">8. Hủy</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Nội Dung Công Việc</label>
+          <textarea id="editNoiDung" rows="2"
+            class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm text-slate-900 focus:border-blue-600 outline-none"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-indigo-800 mb-1">Các Bước Triển Khai Công Việc Tiếp Theo</label>
+          <textarea id="editCacBuocTrienKhai" rows="3" placeholder="VD: Bước 1: Nộp Sở -> Bước 2: Chấm dứt MST tại Thuế -> Bước 3: Giải thể bước 2..."
+            class="w-full px-3 py-2 rounded-xl bg-indigo-50/40 border border-indigo-200 text-sm text-slate-900 focus:bg-white focus:border-indigo-600 outline-none"></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Tiến Độ Thu Phí</label>
+            <select id="editThanhToan"
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-semibold text-slate-900 focus:border-blue-600 outline-none cursor-pointer">
+              <option value="Chưa thanh toán">Chưa thanh toán</option>
+              <option value="Đã thanh toán 70%">Đã thanh toán 70%</option>
+              <option value="Đã thanh toán 100%">Đã thanh toán 100%</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-600 mb-1">Ngày Dự Kiến Có Kết Quả</label>
+            <input id="editNgayDuKien" type="text" placeholder="VD: 01/12/2026"
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm text-slate-900 focus:border-blue-600 outline-none" />
+          </div>
+        </div>
+
+        <!-- 2 Nút Gạt Độc Lập: Xuất Hóa Đơn VAT & Có HĐDVPL -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="flex items-center justify-between p-3 rounded-xl bg-emerald-50/50 border border-emerald-200">
+            <div>
+              <div class="text-xs font-bold text-slate-800">Xuất Hóa Đơn VAT</div>
+              <div id="drawerVatHint" class="text-xs font-semibold text-slate-500">Chưa xuất hóa đơn VAT</div>
+            </div>
+            <button id="drawerVatToggle" type="button" role="switch" aria-checked="false"
+              class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-slate-300 transition-colors duration-200">
+              <span id="drawerVatKnob" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 translate-x-0"></span>
+            </button>
+          </div>
+
+          <div class="flex items-center justify-between p-3 rounded-xl bg-blue-50/50 border border-blue-200">
+            <div>
+              <div class="text-xs font-bold text-slate-800">Hợp Đồng (HĐDVPL)</div>
+              <div id="drawerHddvplHint" class="text-xs font-semibold text-slate-500">Chưa có HĐDVPL</div>
+            </div>
+            <button id="drawerHddvplToggle" type="button" role="switch" aria-checked="false"
+              class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent bg-slate-300 transition-colors duration-200">
+              <span id="drawerHddvplKnob" class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 translate-x-0"></span>
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-amber-800 mb-1">Việc Cần Làm Trong Ngày</label>
+          <textarea id="editViecCanLam" rows="2" placeholder="Nhập đầu việc cần xử lý gấp hôm nay..."
+            class="w-full px-3 py-2 rounded-xl bg-amber-50/50 border border-amber-200 text-sm text-slate-900 focus:bg-white focus:border-amber-500 outline-none"></textarea>
+        </div>
+
+        <!-- MỤC NHẮC NHỞ TIẾN ĐỘ (LỊCH HẸN TƯƠNG LAI CÓ CẤU TRÚC) -->
+        <div class="p-3.5 rounded-2xl bg-purple-50/50 border border-purple-200 space-y-2.5">
+          <div class="flex items-center justify-between gap-2">
+            <label class="text-xs font-extrabold uppercase tracking-wider text-purple-900 flex items-center gap-1.5">
+              <span>📅 Nhắc Nhở Tiến Độ (Lịch Hẹn Tương Lai)</span>
+            </label>
+            <button id="toggleLegacyReminderBtn" type="button"
+              class="text-xs font-semibold text-purple-700 hover:underline cursor-pointer">
+              Sửa ghi chú cũ
+            </button>
+          </div>
+
+          <!-- 2 Ô Nhập Tách Biệt: Ngày dự kiến + Nội dung sẽ làm + Nút Thêm -->
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+            <div class="sm:col-span-4">
+              <label for="newReminderDate" class="sr-only">Ngày dự kiến thực hiện</label>
+              <input id="newReminderDate" type="date"
+                class="w-full px-2.5 py-2 rounded-xl bg-white border border-purple-200 text-xs font-bold text-slate-900 focus:border-purple-600 outline-none" />
+            </div>
+            <div class="sm:col-span-5">
+              <label for="newReminderText" class="sr-only">Nội dung dự kiến sẽ làm</label>
+              <input id="newReminderText" type="text"
+                placeholder="Dự kiến ngày này sẽ làm gì..."
+                class="w-full px-3 py-2 rounded-xl bg-white border border-purple-200 text-xs sm:text-sm text-slate-900 focus:border-purple-600 outline-none" />
+            </div>
+            <div class="sm:col-span-3">
+              <button id="addReminderBtn" type="button"
+                class="w-full px-3 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-bold transition cursor-pointer whitespace-nowrap">
+                + Thêm nhắc
+              </button>
+            </div>
+          </div>
+
+          <!-- Danh sách các mốc nhắc nhở tương lai -->
+          <div id="drawerReminderList" class="space-y-1.5 max-h-44 overflow-y-auto pr-0.5">
+            <!-- Render tự động bằng JS -->
+          </div>
+
+          <!-- Ghi chú nhắc nhở cũ từ Google Sheet -->
+          <div id="legacyReminderWrapper" class="hidden pt-2 border-t border-purple-200/70">
+            <label for="editNhacNho" class="block text-[11px] font-bold text-purple-800 mb-1">
+              Ghi chú nhắc nhở chung / Dữ liệu cũ từ Sheet:
+            </label>
+            <textarea id="editNhacNho" rows="2" placeholder="Ghi chú nhắc nhở chung..."
+              class="w-full px-3 py-2 rounded-xl bg-white border border-purple-200 text-xs text-slate-900 focus:border-purple-600 outline-none"></textarea>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-600 mb-1">Thông Tin Liên Hệ / Cán Bộ Thuế &amp; Sở</label>
+          <textarea id="editLienHe" rows="3"
+            class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs text-slate-800 focus:border-blue-600 outline-none"></textarea>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Footer Drawer -->
+    <div class="bg-white px-6 py-3.5 border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
+      <button id="drawerDeleteBtn" type="button"
+        class="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold border border-red-200 transition cursor-pointer">
+        Xóa Hồ Sơ
+      </button>
+      <div class="flex items-center gap-2">
+        <button id="drawerCancelBtn" type="button"
+          class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold transition cursor-pointer">
+          Đóng
+        </button>
+        <button id="drawerSaveBtn" type="button"
+          class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold shadow transition cursor-pointer">
+          Lưu Thay Đổi
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ==================== 4. MODAL THÊM HỒ SƠ MỚI ==================== -->
+  <div id="addModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-2xs">
+    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+      <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+        <div>
+          <h3 class="text-base font-extrabold">+ Thêm Hồ Sơ Pháp Lý Mới</h3>
+          <p class="text-xs text-slate-400">Tự động cấp STT tiếp theo và ghi nhận lịch sử khởi tạo</p>
+        </div>
+        <button id="closeAddModalBtn" type="button" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <form id="addTaskForm" class="p-6 overflow-y-auto space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="sm:col-span-2">
+            <label class="block text-xs font-bold text-slate-700 mb-1">Tên Doanh Nghiệp / Nhãn Hiệu *</label>
+            <input id="newTenDN" type="text" required placeholder="VD: CÔNG TY TNHH ABC VIỆT NAM"
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-bold focus:border-blue-600 outline-none" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Mã Số Thuế / Số Đơn</label>
+            <input id="newMST" type="text" placeholder="VD: 0109998888"
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-mono focus:border-blue-600 outline-none" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Phụ Trách</label>
+            <select id="newPhuTrach"
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-semibold focus:border-blue-600 outline-none">
+              <option value="Chi Trần">Chi Trần</option>
+              <option value="Hà">Hà</option>
+              <option value="Tuấn Minh">Tuấn Minh</option>
+              <option value="Nhân viên khác">Nhân viên khác</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Trạng Thái Ban Đầu</label>
+            <select id="newTrangThai"
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-semibold focus:border-blue-600 outline-none">
+              <option value="1. Soạn hồ sơ">1. Soạn hồ sơ</option>
+              <option value="2. Chờ khách ký">2. Chờ khách ký</option>
+              <option value="3. Nộp hồ sơ">3. Nộp hồ sơ</option>
+              <option value="4. Đã nộp - Chờ KQ">4. Đã nộp - Chờ KQ</option>
+              <option value="6. Đã chấp thuận">6. Đã chấp thuận</option>
+              <option value="Chờ làm hồ sơ lưu">Chờ làm hồ sơ lưu</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Dự Kiến Có Kết Quả</label>
+            <input id="newNgayDuKien" type="text" placeholder="VD: 30/11/2026"
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:border-blue-600 outline-none" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Nội Dung Công Việc *</label>
+          <textarea id="newNoiDung" rows="2" required placeholder="VD: Thành lập mới CTCP / Giải thể doanh nghiệp..."
+            class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:border-blue-600 outline-none"></textarea>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-indigo-800 mb-1">Các Bước Triển Khai Công Việc Tiếp Theo</label>
+          <textarea id="newCacBuocTrienKhai" rows="2" placeholder="VD: Bước 1: Nộp hồ sơ Sở -> Bước 2: Chấm dứt MST tại Thuế..."
+            class="w-full px-3 py-2 rounded-xl bg-indigo-50/40 border border-indigo-200 text-sm focus:border-indigo-600 outline-none"></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Tiến Độ Thu Phí</label>
+            <select id="newThanhToan"
+              class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm font-semibold focus:border-blue-600 outline-none">
+              <option value="Chưa thanh toán">Chưa thanh toán</option>
+              <option value="Đã thanh toán 70%">Đã thanh toán 70%</option>
+              <option value="Đã thanh toán 100%">Đã thanh toán 100%</option>
+            </select>
+          </div>
+          <div class="flex items-center pt-5">
+            <label class="inline-flex items-center gap-2.5 cursor-pointer select-none">
+              <input id="newDaXuatVAT" type="checkbox" class="w-5 h-5 rounded text-emerald-600 focus:ring-emerald-500" />
+              <span class="text-sm font-bold text-emerald-800">Đã xuất hóa đơn VAT</span>
+            </label>
+          </div>
+          <div class="flex items-center pt-5">
+            <label class="inline-flex items-center gap-2.5 cursor-pointer select-none">
+              <input id="newCoHDDVPL" type="checkbox" class="w-5 h-5 rounded text-blue-600 focus:ring-blue-500" />
+              <span class="text-sm font-bold text-slate-800">Đã có HĐDVPL</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-amber-800 mb-1">Việc Cần Làm Trong Ngày</label>
+          <input id="newViecCanLam" type="text" placeholder="VD: Gửi tờ khai cho khách ký"
+            class="w-full px-3 py-2 rounded-xl bg-amber-50/40 border border-amber-200 text-sm focus:bg-white focus:border-amber-500 outline-none" />
+        </div>
+
+        <div class="p-3 rounded-xl bg-purple-50/60 border border-purple-200 space-y-2">
+          <label class="block text-xs font-bold text-purple-900">📅 Đặt Lịch Nhắc Nhở Tương Lai (Nếu có)</label>
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+            <div class="sm:col-span-4">
+              <input id="newModalReminderDate" type="date"
+                class="w-full px-2.5 py-2 rounded-xl bg-white border border-purple-200 text-xs font-bold text-slate-900 focus:border-purple-600 outline-none" />
+            </div>
+            <div class="sm:col-span-8">
+              <input id="newModalReminderText" type="text" placeholder="VD: Gọi lại cán bộ thuế hỏi kết quả giải trình..."
+                class="w-full px-3 py-2 rounded-xl bg-white border border-purple-200 text-xs sm:text-sm text-slate-900 focus:border-purple-600 outline-none" />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Thông Tin Liên Hệ / Cán Bộ Phụ Trách</label>
+          <input id="newLienHe" type="text" placeholder="VD: Chị Lan CBT - 090xxxxxxx"
+            class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:border-blue-600 outline-none" />
+        </div>
+
+        <div class="pt-3 border-t border-slate-200 flex items-center justify-end gap-2.5">
+          <button id="cancelAddModalBtn" type="button"
+            class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold cursor-pointer">
+            Hủy
+          </button>
+          <button type="submit"
+            class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold shadow cursor-pointer">
+            Tạo Hồ Sơ Mới
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== 5. MODAL XÁC NHẬN XÓA AN TOÀN ==================== -->
+  <div id="confirmDeleteModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-2xs">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 p-6 space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+        </div>
+        <div>
+          <h4 class="text-base font-extrabold text-slate-900">Xác Nhận Xóa Hồ Sơ</h4>
+          <p class="text-xs text-slate-500">Hành động này sẽ xóa hồ sơ khỏi hệ thống của cả team.</p>
+        </div>
+      </div>
+      <p id="confirmDeleteMsg" class="text-sm text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-200 font-medium">
+        Bạn có chắc chắn muốn xóa hồ sơ này?
+      </p>
+      <div class="flex items-center justify-end gap-2.5 pt-2">
+        <button id="cancelDeleteBtn" type="button"
+          class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold cursor-pointer">
+          Hủy bỏ
+        </button>
+        <button id="confirmDeleteBtn" type="button"
+          class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold shadow cursor-pointer">
+          Xóa Vĩnh Viễn
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 6. TOAST THÔNG BÁO GÓC PHẢI DƯỚI ==================== -->
+  <div id="toastContainer" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-[90vw]"></div>
+
+  <!-- ==================== 7. JAVASCRIPT LOGIC & FIREBASE SYNC ==================== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      doc,
+      setDoc,
+      deleteDoc,
+      onSnapshot
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // =========================================================================
+    // CẤU HÌNH BẢO MẬT NỘI BỘ & KẾT NỐI FIREBASE ĐỒNG BỘ CẢ TEAM
+    // =========================================================================
+    const TEAM_ACCESS_PASSCODE = "lvp2026"; // Đổi mật khẩu truy cập nội bộ của team tại đây
+
+    // Dán 6 dòng cấu hình Firebase của anh/chị vào đây khi đưa lên GitHub Pages:
+    const MANUAL_FIREBASE_CONFIG = {
+      apiKey: "AIzaSyCZw0DGkFZQbZjayrlsxTB11oKYg6B59Qk",
+      authDomain: "teamchi-1e76b.firebaseapp.com",
+      projectId: "teamchi-1e76b",
+      storageBucket: "teamchi-1e76b.firebasestorage.app",
+      messagingSenderId: "358290363086",
+      appId: "1:358290363086:web:b9dcf786d4ee9b3338b69f"
+    };
+
+    // Danh sách khởi tạo để trống nhằm bảo mật tuyệt đối dữ liệu khách hàng khi đăng mã nguồn lên GitHub Public.
+    // Toàn bộ 72+ hồ sơ thực tế sẽ được nạp 1 lần qua nút "Nhập Excel" và lưu đồng bộ trên Google Firebase.
+    const INITIAL_TASKS = [];
+
+    const ALL_STATUSES = [
+      "1. Soạn hồ sơ",
+      "2. Chờ khách ký",
+      "3. Nộp hồ sơ",
+      "4. Đã nộp - Chờ KQ",
+      "6. Đã chấp thuận",
+      "Chờ làm hồ sơ lưu",
+      "8. Hủy"
+    ];
+
+    const ALL_STAFF = ["Chi Trần", "Hà", "Tuấn Minh", "Nhân viên khác"];
+    const ALL_PAYMENTS = ["Chưa thanh toán", "Đã thanh toán 70%", "Đã thanh toán 100%"];
+
+    // Chuẩn hóa dữ liệu & tự động gộp nội dung Cảnh báo cũ (nếu có) sang Việc cần làm trong ngày
+    function normalizeTaskRecord(raw) {
+      const hasVat = typeof raw.daXuatVAT === "boolean"
+        ? raw.daXuatVAT
+        : raw.thanhToan === "Đã xuất VAT";
+      const normalizedPayment =
+        raw.thanhToan === "Đã xuất VAT" || !raw.thanhToan
+          ? "Chưa thanh toán"
+          : raw.thanhToan;
+
+      let mergedDaily = (raw.viecCanLam || "").trim();
+      const legacyWarning = (raw.canhBao || "").trim();
+      if (legacyWarning) {
+        if (!mergedDaily) {
+          mergedDaily = legacyWarning;
+        } else if (!mergedDaily.toLowerCase().includes(legacyWarning.toLowerCase())) {
+          mergedDaily = `${mergedDaily}; ${legacyWarning}`;
+        }
+      }
+
+      const cleaned = {
+        ...raw,
+        viecCanLam: mergedDaily,
+        cacBuocTrienKhai: raw.cacBuocTrienKhai || "",
+        lichNhacNho: Array.isArray(raw.lichNhacNho) ? raw.lichNhacNho : [],
+        thanhToan: normalizedPayment,
+        daXuatVAT: hasVat,
+        coHDDVPL: Boolean(raw.coHDDVPL)
+      };
+      delete cleaned.canhBao;
+      return cleaned;
+    }
+
+    function getTodayIsoDate() {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const dd = String(now.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function getTomorrowIsoDate() {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function getReminderStatusBadge(dateISO) {
+      const todayISO = getTodayIsoDate();
+      if (!dateISO) {
+        return { label: "Đã lên lịch", cls: "bg-purple-100 text-purple-800 border-purple-200" };
+      }
+      if (dateISO < todayISO) {
+        return { label: "Quá hẹn", cls: "bg-red-100 text-red-700 border-red-200" };
+      }
+      if (dateISO === todayISO) {
+        return { label: "Hôm nay", cls: "bg-amber-100 text-amber-900 border-amber-300" };
+      }
+      return { label: "Sắp tới", cls: "bg-purple-100 text-purple-800 border-purple-200" };
+    }
+
+    function getSortedFutureReminders(task) {
+      const list = Array.isArray(task.lichNhacNho) ? [...task.lichNhacNho] : [];
+      return list.sort((a, b) => (a.dateISO || "").localeCompare(b.dateISO || ""));
+    }
+
+    function removeVietnameseTones(str) {
+      if (!str) return "";
+      return String(str)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/đ/g, "d")
+        .replace(/Đ/g, "D")
+        .toLowerCase();
+    }
+
+    function analyzeDeadlineAndCnvg(task) {
+      const isCancelled = task.trangThai === "8. Hủy";
+      const isCompleted = task.trangThai === "6. Đã chấp thuận" || task.trangThai === "Chờ làm hồ sơ lưu";
+      let deadlineBadge = null;
+      let isDeadlineAlert = false;
+
+      if (task.ngayDuKien && task.ngayDuKien.trim()) {
+        const rawDate = task.ngayDuKien.trim();
+        const match = rawDate.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?$/);
+        if (match && !isCancelled && !isCompleted) {
+          const day = parseInt(match[1], 10);
+          const month = parseInt(match[2], 10) - 1;
+          const year = match[3] ? parseInt(match[3], 10) : 2026;
+          const targetDate = new Date(year, month, day, 23, 59, 59);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const diffDays = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+          if (diffDays < 0) {
+            isDeadlineAlert = true;
+            deadlineBadge = {
+              label: `Quá hạn KQ: ${rawDate}`,
+              cls: "bg-red-600 text-white border-red-700"
+            };
+          } else if (diffDays <= 5) {
+            isDeadlineAlert = true;
+            deadlineBadge = {
+              label: `Sắp đến hạn: ${rawDate}`,
+              cls: "bg-amber-500 text-white border-amber-600"
+            };
+          } else {
+            deadlineBadge = {
+              label: `Dự kiến: ${rawDate}`,
+              cls: "bg-indigo-50 text-indigo-800 border-indigo-200"
+            };
+          }
+        } else {
+          deadlineBadge = {
+            label: `Dự kiến: ${rawDate}`,
+            cls: "bg-indigo-50 text-indigo-800 border-indigo-200"
+          };
+        }
+      }
+
+      const fullText = [
+        task.noiDung,
+        task.viecCanLam,
+        task.nhacNho,
+        task.nhatKyTienDo
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      const isTransferCase =
+        fullText.includes("chuyển nhượng") ||
+        fullText.includes("cnvg") ||
+        fullText.includes("tờ khai cnv") ||
+        fullText.includes("mua phần vốn góp");
+
+      const hasPendingTaxFilingReminder =
+        fullText.includes("tờ khai cnv") ||
+        fullText.includes("hạn cuối nộp hợp đồng chuyển nhượng") ||
+        fullText.includes("kê khai bù tờ khai chuyển nhượng") ||
+        (isTransferCase && !isCancelled && task.trangThai !== "Chờ làm hồ sơ lưu");
+
+      const isCnvgAlert = !isCancelled && hasPendingTaxFilingReminder;
+      const cnvgBadge = isCnvgAlert
+        ? {
+            label:
+              fullText.includes("tờ khai cnv") || fullText.includes("hạn cuối")
+                ? "⚠ Hạn tờ khai CNVG"
+                : "Theo dõi hạn CNVG",
+            cls:
+              fullText.includes("tờ khai cnv") || fullText.includes("hạn cuối")
+                ? "bg-red-50 text-red-700 border-red-300"
+                : "bg-amber-50 text-amber-800 border-amber-300"
+          }
+        : null;
+
+      return {
+        deadlineBadge,
+        cnvgBadge,
+        isDueOrCnvg: isDeadlineAlert || isCnvgAlert
+      };
+    }
+
+    function isPendingStorageOrContract(task) {
+      if (task.trangThai === "8. Hủy") return false;
+      if (task.trangThai === "Chờ làm hồ sơ lưu") return true;
+      const text = [task.viecCanLam, task.nhacNho]
+        .join(" ")
+        .toLowerCase();
+      return (
+        text.includes("hồ sơ lưu") ||
+        text.includes("lưu hồ sơ") ||
+        text.includes("lấy lại") ||
+        text.includes("bản hợp đồng") ||
+        text.includes("gửi hddvpl") ||
+        text.includes("soạn hợp đồng")
+      );
+    }
+
+    function isUnpaidOrPartial(task) {
+      if (task.trangThai === "8. Hủy") return false;
+      return task.thanhToan !== "Đã thanh toán 100%";
+    }
+
+    // =========================================================================
+    // TRẠNG THÁI ỨNG DỤNG
+    // =========================================================================
+    const state = {
+      activeUser: "Chi Trần",
+      activeMainTab: "tasks",
+      dailyStaffFilter: "all",
+      tasks: INITIAL_TASKS.map((t, idx) =>
+        normalizeTaskRecord({
+          id: `seed_${String(idx + 1).padStart(2, "0")}`,
+          ...t,
+          updatedAt: Date.now()
+        })
+      ),
+      notifications: [],
+      selectedTaskId: null,
+      filters: {
+        search: "",
+        staff: "all",
+        status: "all",
+        special: "all"
+      },
+      db: null,
+      firebaseUser: null,
+      isFirebaseReady: false,
+      appId: typeof __app_id !== "undefined" ? __app_id : "team-chi-luat-viet-phu-v2",
+      hasCheckedSeed: false
+    };
+
+    // =========================================================================
+    // HÀM THÔNG BÁO & ĐỒNG BỘ DỮ LIỆU (CRUD + FIRESTORE)
+    // =========================================================================
+    function pushNotification(title, detail, taskId = "") {
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+      state.notifications.unshift({
+        id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        title,
+        detail,
+        taskId,
+        timeStr
+      });
+      if (state.notifications.length > 30) {
+        state.notifications.length = 30;
+      }
+    }
+
+    function getTasksCollectionRef() {
+      if (!state.db) return null;
+      return collection(state.db, "artifacts", state.appId, "public", "data", "tasks");
+    }
+
+    async function updateTaskWithAutoLog(taskId, updates = {}, autoLogMessages = []) {
+      const idx = state.tasks.findIndex((t) => t.id === taskId);
+      if (idx === -1) return;
+
+      const currentTask = state.tasks[idx];
+      const baseLog =
+        typeof updates.nhatKyTienDo === "string"
+          ? updates.nhatKyTienDo
+          : currentTask.nhatKyTienDo || "";
+
+      let finalLog = baseLog;
+      if (autoLogMessages && autoLogMessages.length > 0) {
+        const stamp = formatAutoLogTimestamp();
+        const newEntries = autoLogMessages
+          .map((msg) => `[${stamp} - ${state.activeUser}]: ${msg}`)
+          .join("\n");
+        finalLog = baseLog.trim() ? `${newEntries}\n${baseLog.trim()}` : newEntries;
+      }
+
+      const mergedRecord = normalizeTaskRecord({
+        ...currentTask,
+        ...updates,
+        nhatKyTienDo: finalLog,
+        updatedAt: Date.now()
+      });
+
+      state.tasks[idx] = mergedRecord;
+
+      if (autoLogMessages && autoLogMessages.length > 0) {
+        pushNotification(
+          `#${mergedRecord.stt} • ${mergedRecord.tenDoanhNghiep}`,
+          autoLogMessages.join(" • "),
+          mergedRecord.id
+        );
+      }
+
+      renderAll();
+      if (state.selectedTaskId === taskId) {
+        populateDrawer(mergedRecord);
+      }
+
+      if (state.isFirebaseReady && state.db) {
+        try {
+          const colRef = getTasksCollectionRef();
+          const { id, ...payload } = mergedRecord;
+          await setDoc(doc(colRef, taskId), payload, { merge: true });
+        } catch (err) {
+          console.warn("Đồng bộ cập nhật Firestore tạm gián đoạn:", err);
+        }
+      }
+    }
+
+    async function createNewTask(newData) {
+      const maxStt = state.tasks.reduce((max, t) => Math.max(max, Number(t.stt) || 0), 0);
+      const nextStt = maxStt + 1;
+      const stamp = formatAutoLogTimestamp();
+      const initialLog = `[${stamp} - ${state.activeUser}]: Khởi tạo hồ sơ mới trên hệ thống`;
+
+      const newRecord = normalizeTaskRecord({
+        id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        stt: nextStt,
+        tenDoanhNghiep: (newData.tenDoanhNghiep || "").trim(),
+        mst: (newData.mst || "").trim(),
+        noiDung: (newData.noiDung || "").trim(),
+        cacBuocTrienKhai: (newData.cacBuocTrienKhai || "").trim(),
+        phuTrach: newData.phuTrach || state.activeUser,
+        trangThai: newData.trangThai || "1. Soạn hồ sơ",
+        viecCanLam: (newData.viecCanLam || "").trim(),
+        nhacNho: "",
+        lichNhacNho: Array.isArray(newData.lichNhacNho) ? newData.lichNhacNho : [],
+        ngayDuKien: (newData.ngayDuKien || "").trim(),
+        thanhToan: newData.thanhToan || "Chưa thanh toán",
+        daXuatVAT: Boolean(newData.daXuatVAT),
+        coHDDVPL: Boolean(newData.coHDDVPL),
+        lienHe: (newData.lienHe || "").trim(),
+        nhatKyTienDo: initialLog,
+        updatedAt: Date.now()
+      });
+
+      state.tasks.unshift(newRecord);
+      pushNotification(
+        `Hồ sơ mới #${newRecord.stt} • ${newRecord.tenDoanhNghiep}`,
+        `Phụ trách: ${newRecord.phuTrach} • Trạng thái: ${newRecord.trangThai}`,
+        newRecord.id
+      );
+      renderAll();
+      showToast(`Đã tạo hồ sơ #${newRecord.stt} - ${newRecord.tenDoanhNghiep}!`, "success");
+
+      if (state.isFirebaseReady && state.db) {
+        try {
+          const colRef = getTasksCollectionRef();
+          const { id, ...payload } = newRecord;
+          await setDoc(doc(colRef, newRecord.id), payload);
+        } catch (err) {
+          console.warn("Đồng bộ thêm mới Firestore tạm gián đoạn:", err);
+        }
+      }
+    }
+
+    async function deleteTaskById(taskId) {
+      const target = state.tasks.find((t) => t.id === taskId);
+      if (!target) return;
+
+      state.tasks = state.tasks.filter((t) => t.id !== taskId);
+      if (state.selectedTaskId === taskId) {
+        closeDrawer();
+      }
+      pushNotification(
+        `Đã xóa hồ sơ #${target.stt}`,
+        `${target.tenDoanhNghiep} (thao tác bởi ${state.activeUser})`
+      );
+      renderAll();
+      showToast(`Đã xóa hồ sơ #${target.stt} - ${target.tenDoanhNghiep}`, "info");
+
+      if (state.isFirebaseReady && state.db) {
+        try {
+          const colRef = getTasksCollectionRef();
+          await deleteDoc(doc(colRef, taskId));
+        } catch (err) {
+          console.warn("Đồng bộ xóa Firestore tạm gián đoạn:", err);
+        }
+      }
+    }
+
+    async function initFirestoreBackgroundSync() {
+      const pill = document.getElementById("syncStatusPill");
+      try {
+        let firebaseConfig = null;
+        if (MANUAL_FIREBASE_CONFIG && MANUAL_FIREBASE_CONFIG.apiKey && MANUAL_FIREBASE_CONFIG.projectId) {
+          firebaseConfig = MANUAL_FIREBASE_CONFIG;
+        } else if (typeof __firebase_config !== "undefined" && __firebase_config) {
+          firebaseConfig =
+            typeof __firebase_config === "string"
+              ? JSON.parse(__firebase_config)
+              : __firebase_config;
+        }
+
+        if (!firebaseConfig) {
+          if (pill) {
+            pill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span><span>Chế độ cục bộ • ${state.tasks.length} hồ sơ</span>`;
+          }
+          return;
+        }
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        state.db = getFirestore(app);
+
+        if (typeof __initial_auth_token !== "undefined" && __initial_auth_token) {
+          const cred = await signInWithCustomToken(auth, __initial_auth_token);
+          state.firebaseUser = cred.user;
+        } else {
+          const cred = await signInAnonymously(auth);
+          state.firebaseUser = cred.user;
+        }
+
+        state.isFirebaseReady = true;
+        const colRef = getTasksCollectionRef();
+
+        onSnapshot(
+          colRef,
+          async (snapshot) => {
+            if (snapshot.empty) {
+              if (!state.hasCheckedSeed && state.tasks.length > 0) {
+                state.hasCheckedSeed = true;
+                for (const task of state.tasks) {
+                  const { id, ...payload } = task;
+                  await setDoc(doc(colRef, id), payload);
+                }
+              } else if (pill) {
+                pill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>Đã kết nối Cloud • 0 hồ sơ (Bấm Nhập Excel)</span>`;
+              }
+              return;
+            }
+            state.hasCheckedSeed = true;
+
+            const cloudTasks = snapshot.docs.map((d) =>
+              normalizeTaskRecord({ id: d.id, ...d.data() })
+            );
+            cloudTasks.sort((a, b) => (Number(a.stt) || 0) - (Number(b.stt) || 0));
+            state.tasks = cloudTasks;
+            if (pill) {
+              pill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>Đồng bộ trực tuyến • ${state.tasks.length} hồ sơ</span>`;
+            }
+            renderAll();
+          },
+          (err) => {
+            console.warn("Lỗi lắng nghe Firestore:", err);
+            if (pill) {
+              pill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-red-400"></span><span>Lỗi quyền truy cập Firebase</span>`;
+            }
+          }
+        );
+      } catch (err) {
+        console.warn("Chạy ở chế độ cục bộ tức thì:", err);
+      }
+    }
+
+    // =========================================================================
+    // TAB 2: RENDER BẢNG VIỆC CẦN LÀM TRONG NGÀY
+    // =========================================================================
+    function renderDailyFocusPanel() {
+      const allDailyTasks = state.tasks.filter(
+        (t) => t.viecCanLam && t.viecCanLam.trim() !== "" && t.trangThai !== "8. Hủy"
+      );
+      const myDailyTasks = allDailyTasks.filter((t) => t.phuTrach === state.activeUser);
+
+      const countAllEl = document.getElementById("dailyCountAll");
+      const countMineEl = document.getElementById("dailyCountMine");
+      if (countAllEl) countAllEl.textContent = allDailyTasks.length;
+      if (countMineEl) countMineEl.textContent = myDailyTasks.length;
+
+      document.querySelectorAll(".daily-staff-pill").forEach((btn) => {
+        const key = btn.getAttribute("data-daily-staff-filter");
+        const isActive = state.dailyStaffFilter === key;
+        btn.className = isActive
+          ? "daily-staff-pill px-3 py-1 rounded-lg text-xs font-extrabold bg-amber-600 text-white transition cursor-pointer"
+          : "daily-staff-pill px-3 py-1 rounded-lg text-xs font-semibold text-slate-700 hover:bg-white transition cursor-pointer";
+      });
+
+      const selectEl = document.getElementById("quickDailyTaskSelect");
+      if (selectEl) {
+        const prevVal = selectEl.value;
+        const activeTasks = state.tasks
+          .filter((t) => t.trangThai !== "8. Hủy")
+          .sort((a, b) => (Number(a.stt) || 0) - (Number(b.stt) || 0));
+        selectEl.innerHTML =
+          `<option value="">-- Chọn hồ sơ cần thêm việc trong ngày (${activeTasks.length} hồ sơ) --</option>` +
+          activeTasks
+            .map(
+              (t) =>
+                `<option value="${escapeHtml(t.id)}">#${escapeHtml(t.stt)} • ${escapeHtml(t.tenDoanhNghiep)} (${escapeHtml(t.phuTrach)})</option>`
+            )
+            .join("");
+        if (prevVal) selectEl.value = prevVal;
+      }
+
+      const kw = state.filters.search.trim().toLowerCase();
+      const visibleDaily = allDailyTasks.filter((t) => {
+        if (state.dailyStaffFilter === "mine" && t.phuTrach !== state.activeUser) return false;
+        if (
+          state.dailyStaffFilter !== "all" &&
+          state.dailyStaffFilter !== "mine" &&
+          t.phuTrach !== state.dailyStaffFilter
+        ) {
+          return false;
+        }
+        if (kw) {
+          const blob = [t.stt, t.tenDoanhNghiep, t.mst, t.viecCanLam, t.cacBuocTrienKhai, t.phuTrach]
+            .join(" ")
+            .toLowerCase();
+          if (
+            !blob.includes(kw) &&
+            !removeVietnameseTones(blob).includes(removeVietnameseTones(kw))
+          ) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      const tbody = document.getElementById("dailyCompactTableBody");
+      if (!tbody) return;
+
+      if (visibleDaily.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="py-10 px-4 text-center text-slate-500 text-xs sm:text-sm">
+              Không có đầu việc cần làm trong ngày nào phù hợp với bộ lọc đang chọn.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = visibleDaily
+        .map(
+          (t) => `
+          <tr data-daily-row-id="${escapeHtml(t.id)}"
+            class="daily-compact-row hover:bg-amber-50/50 transition cursor-pointer">
+            <td class="py-3 px-3 text-center font-extrabold text-slate-500">${escapeHtml(t.stt)}</td>
+            <td class="py-3 px-3">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${getStaffBadgeClasses(t.phuTrach)}">
+                ${escapeHtml(t.phuTrach)}
+              </span>
+            </td>
+            <td class="py-3 px-3">
+              <div class="font-bold text-slate-900 leading-snug">${escapeHtml(t.tenDoanhNghiep)}</div>
+              ${t.mst ? `<div class="text-[11px] font-mono text-slate-500 mt-0.5">MST: ${escapeHtml(t.mst)}</div>` : ""}
+            </td>
+            <td class="py-3 px-3">
+              <div class="font-semibold text-amber-950 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-xl whitespace-pre-line leading-snug">
+                ${escapeHtml(t.viecCanLam)}
+              </div>
+            </td>
+            <td class="py-3 px-3 text-xs text-indigo-950 whitespace-pre-line leading-relaxed">
+              ${t.cacBuocTrienKhai ? escapeHtml(t.cacBuocTrienKhai) : `<span class="text-slate-400 italic">—</span>`}
+            </td>
+            <td class="py-3 px-3">
+              <span class="inline-block px-2.5 py-1 rounded-lg border text-xs font-bold ${getStatusColorClasses(t.trangThai)}">
+                ${escapeHtml(t.trangThai)}
+              </span>
+            </td>
+            <td class="py-3 px-3 text-right">
+              <div class="inline-flex items-center gap-1.5 justify-end">
+                <button type="button" data-complete-daily="${escapeHtml(t.id)}"
+                  class="complete-daily-btn px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-2xs transition cursor-pointer whitespace-nowrap">
+                  ✓ Xong việc ngày
+                </button>
+                <button type="button" data-open-daily-drawer="${escapeHtml(t.id)}"
+                  class="open-daily-drawer-btn px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-blue-700 text-white text-xs font-bold transition cursor-pointer">
+                  Mở
+                </button>
+              </div>
+            </td>
+          </tr>
+        `
+        )
+        .join("");
+
+      tbody.querySelectorAll(".complete-daily-btn").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute("data-complete-daily");
+          const target = state.tasks.find((t) => t.id === id);
+          if (!target) return;
+          const doneText = target.viecCanLam;
+          await updateTaskWithAutoLog(
+            id,
+            { viecCanLam: "" },
+            [`Hoàn thành việc trong ngày: "${doneText}"`]
+          );
+          showToast(`Đã hoàn thành việc ngày & ghi vào Nhật Ký Tiến Độ!`, "success");
+        });
+      });
+
+      tbody.querySelectorAll(".open-daily-drawer-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openDrawer(btn.getAttribute("data-open-daily-drawer"));
+        });
+      });
+
+      tbody.querySelectorAll(".daily-compact-row").forEach((row) => {
+        row.addEventListener("click", () => {
+          openDrawer(row.getAttribute("data-daily-row-id"));
+        });
+      });
+    }
+
+    // =========================================================================
+    // LỌC DỮ LIỆU & CẬP NHẬT GIAO DIỆN CHÍNH
+    // =========================================================================
+    function getFilteredTasks() {
+      const { search, staff, status, special } = state.filters;
+      const kw = search.trim().toLowerCase();
+
+      return state.tasks.filter((t) => {
+        if (special === "daily_today") {
+          if (!t.viecCanLam || !t.viecCanLam.trim() || t.trangThai === "8. Hủy") return false;
+        } else if (special === "deadline_cnvg") {
+          if (!analyzeDeadlineAndCnvg(t).isDueOrCnvg) return false;
+        } else if (special === "unpaid") {
+          if (!isUnpaidOrPartial(t)) return false;
+        } else if (special === "no_vat") {
+          if (Boolean(t.daXuatVAT) || t.trangThai === "8. Hủy") return false;
+        } else if (special === "storage_contract") {
+          if (!isPendingStorageOrContract(t)) return false;
+        }
+
+        if (staff !== "all" && t.phuTrach !== staff) return false;
+        if (status !== "all" && t.trangThai !== status) return false;
+
+        if (kw) {
+          const rawBlob = [
+            t.stt,
+            t.tenDoanhNghiep,
+            t.mst,
+            t.noiDung,
+            t.cacBuocTrienKhai,
+            t.lienHe,
+            t.viecCanLam,
+            t.nhacNho,
+            t.phuTrach,
+            t.trangThai
+          ]
+            .join(" ")
+            .toLowerCase();
+
+          const normalizedBlob = removeVietnameseTones(rawBlob);
+          const normalizedKw = removeVietnameseTones(kw);
+
+          if (!rawBlob.includes(kw) && !normalizedBlob.includes(normalizedKw)) {
+            return false;
+          }
+        }
+
+        return true;
+      });
+    }
+
+    function updateViewButtonsUI() {
+      const tabs = [
+        {
+          id: "mainTabTasks",
+          key: "tasks",
+          activeCls: "main-tab-btn inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-slate-900 text-white shadow-2xs transition cursor-pointer",
+          inactiveCls: "main-tab-btn inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition cursor-pointer"
+        },
+        {
+          id: "mainTabDaily",
+          key: "daily",
+          activeCls: "main-tab-btn inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-extrabold bg-amber-600 text-white shadow-2xs transition cursor-pointer",
+          inactiveCls: "main-tab-btn inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-amber-50 text-amber-950 border border-amber-200 hover:bg-amber-100 transition cursor-pointer"
+        }
+      ];
+
+      tabs.forEach((t) => {
+        const el = document.getElementById(t.id);
+        if (el) el.className = state.activeMainTab === t.key ? t.activeCls : t.inactiveCls;
+      });
+
+      const allDailyCount = state.tasks.filter(
+        (t) => t.viecCanLam && t.viecCanLam.trim() !== "" && t.trangThai !== "8. Hủy"
+      ).length;
+      document.getElementById("tabBadgeTasks").textContent = state.tasks.length;
+      document.getElementById("tabBadgeDaily").textContent = allDailyCount;
+    }
+
+    function renderMainWorkspace() {
+      const filtered = getFilteredTasks();
+      document.getElementById("filteredResultLabel").innerHTML =
+        `<strong class="text-slate-900">${filtered.length}</strong> / ${state.tasks.length}`;
+
+      const emptyBox = document.getElementById("emptyStateBox");
+      const tabTasks = document.getElementById("tabPanelTasks");
+      const tabDaily = document.getElementById("tabPanelDaily");
+
+      if (state.activeMainTab === "daily") {
+        emptyBox.classList.add("hidden");
+        tabTasks.classList.add("hidden");
+        tabDaily.classList.remove("hidden");
+        renderDailyFocusPanel();
+        return;
+      }
+
+      tabDaily.classList.add("hidden");
+
+      if (filtered.length === 0) {
+        const titleEl = document.getElementById("emptyStateTitle");
+        const descEl = document.getElementById("emptyStateDesc");
+        if (state.tasks.length === 0) {
+          if (titleEl) titleEl.textContent = "Hệ thống đã sẵn sàng nạp dữ liệu Team Chi";
+          if (descEl) descEl.textContent = "Bấm nút 'Nhập Excel' màu tím ở góc trên bên phải để nạp toàn bộ 72+ hồ sơ từ file Google Sheet lên dùng chung cho cả team.";
+        } else {
+          if (titleEl) titleEl.textContent = "Không tìm thấy hồ sơ phù hợp";
+          if (descEl) descEl.textContent = "Bấm '↺ Đặt lại' để hiển thị lại toàn bộ hồ sơ của Team Chi.";
+        }
+        emptyBox.classList.remove("hidden");
+        tabTasks.classList.add("hidden");
+        return;
+      }
+
+      emptyBox.classList.add("hidden");
+      tabTasks.classList.remove("hidden");
+      renderDesktopTable(filtered);
+    }
+
+    function formatIsoToVNDate(isoStr) {
+      if (!isoStr || !isoStr.includes("-")) return "";
+      const [y, m, d] = isoStr.split("-");
+      return `${d}/${m}/${y}`;
+    }
+
+    function formatAutoLogTimestamp() {
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, "0");
+      const mm = String(now.getMonth() + 1).padStart(2, "0");
+      const yyyy = now.getFullYear();
+      const hh = String(now.getHours()).padStart(2, "0");
+      const min = String(now.getMinutes()).padStart(2, "0");
+      return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+    }
+
+    function escapeHtml(value) {
+      if (value === null || value === undefined) return "";
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function countLogEntries(logStr) {
+      if (!logStr || !logStr.trim()) return 0;
+      return logStr
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean).length;
+    }
+
+    function copyTextToClipboard(text, label = "Mã số thuế") {
+      if (!text) {
+        showToast("Hồ sơ này chưa có Mã số thuế", "warning");
+        return;
+      }
+      const temp = document.createElement("input");
+      temp.value = text;
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand("copy");
+      document.body.removeChild(temp);
+      showToast(`Đã sao chép ${label}: ${text}`, "success");
+    }
+
+    function showToast(msg, type = "success") {
+      const container = document.getElementById("toastContainer");
+      const toast = document.createElement("div");
+      const styles = {
+        success: "bg-slate-900 text-white border-emerald-500",
+        info: "bg-blue-950 text-white border-blue-400",
+        warning: "bg-amber-600 text-white border-amber-200",
+        error: "bg-red-700 text-white border-red-300"
+      };
+      toast.className = `px-4 py-3 rounded-xl shadow-xl border-l-4 text-xs sm:text-sm font-semibold transition-all duration-300 ${styles[type] || styles.success}`;
+      toast.textContent = msg;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = "0";
+        toast.style.transform = "translateY(8px)";
+        setTimeout(() => toast.remove(), 280);
+      }, 3000);
+    }
+
+    function getStatusColorClasses(status) {
+      if (!status) return "bg-slate-100 text-slate-700 border-slate-300";
+      if (status.startsWith("1.")) return "bg-amber-100 text-amber-900 border-amber-300";
+      if (status.startsWith("2.")) return "bg-orange-100 text-orange-900 border-orange-300";
+      if (status.startsWith("3.")) return "bg-sky-100 text-sky-900 border-sky-300";
+      if (status.startsWith("4.")) return "bg-indigo-100 text-indigo-900 border-indigo-300";
+      if (status.startsWith("6.")) return "bg-emerald-100 text-emerald-900 border-emerald-300";
+      if (status === "Chờ làm hồ sơ lưu") return "bg-teal-100 text-teal-900 border-teal-300";
+      if (status.startsWith("8.")) return "bg-slate-200 text-slate-600 border-slate-300";
+      return "bg-slate-100 text-slate-700 border-slate-300";
+    }
+
+    function getStaffBadgeClasses(staff) {
+      if (staff === "Chi Trần") return "bg-blue-900 text-white";
+      if (staff === "Hà") return "bg-indigo-600 text-white";
+      if (staff === "Tuấn Minh") return "bg-teal-600 text-white";
+      return "bg-slate-600 text-white";
+    }
+
+    function getPaymentBadgeClasses(pay) {
+      if (pay === "Đã thanh toán 100%") return "bg-emerald-50 text-emerald-700 border-emerald-200";
+      if (pay === "Đã xuất VAT") return "bg-blue-50 text-blue-700 border-blue-200";
+      if (pay === "Đã thanh toán 70%") return "bg-amber-50 text-amber-700 border-amber-200";
+      return "bg-rose-50 text-rose-700 border-rose-200";
+    }
+
+    // =========================================================================
+    // RENDER BẢNG CHÍNH 5 CỘT THOÁNG MẮT
+    // =========================================================================
+    function renderDesktopTable(tasks) {
+      const tbody = document.getElementById("desktopTableBody");
+
+      tbody.innerHTML = tasks
+        .map((t) => {
+          const hasDaily = Boolean(t.viecCanLam && t.viecCanLam.trim());
+          const rowHighlight = hasDaily && t.trangThai !== "8. Hủy"
+            ? "bg-amber-50/15 hover:bg-amber-50/45"
+            : "hover:bg-blue-50/40";
+          const logCount = countLogEntries(t.nhatKyTienDo);
+          const deadlineInfo = analyzeDeadlineAndCnvg(t);
+          const sortedReminders = getSortedFutureReminders(t);
+          const nextReminder = sortedReminders.length > 0 ? sortedReminders[0] : null;
+
+          return `
+            <tr data-task-id="${escapeHtml(t.id)}"
+              class="desktop-row cursor-pointer transition-colors ${rowHighlight}">
+              
+              <!-- Cột 1: STT -->
+              <td class="py-3.5 px-3 text-center align-top font-extrabold text-xs sm:text-sm text-slate-500">
+                ${escapeHtml(t.stt)}
+              </td>
+
+              <!-- Cột 2: Doanh Nghiệp & MST -->
+              <td class="py-3.5 px-3.5 align-top">
+                <div class="font-bold text-slate-900 text-sm leading-snug">
+                  ${escapeHtml(t.tenDoanhNghiep)}
+                </div>
+                <div class="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                  ${
+                    t.mst
+                      ? `<button type="button" data-copy-mst="${escapeHtml(t.mst)}" title="Bấm để sao chép MST"
+                          class="copy-mst-chip inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 hover:bg-blue-100 text-slate-700 hover:text-blue-900 font-mono text-xs font-semibold border border-slate-200 transition">
+                          <span>MST: ${escapeHtml(t.mst)}</span>
+                          <svg class="w-3 h-3 opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                        </button>`
+                      : `<span class="text-xs text-slate-400 italic">Chưa có MST</span>`
+                  }
+                  ${
+                    t.lienHe
+                      ? `<span title="${escapeHtml(t.lienHe)}" class="inline-flex items-center px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-semibold">☎ LH Thuế</span>`
+                      : ""
+                  }
+                </div>
+              </td>
+
+              <!-- Cột 3: Nội Dung & Bước Triển Khai Tiếp -->
+              <td class="py-3.5 px-3.5 align-top space-y-2">
+                <div class="text-xs sm:text-sm text-slate-800 font-medium whitespace-pre-line leading-relaxed">
+                  ${escapeHtml(t.noiDung)}
+                </div>
+                ${
+                  t.cacBuocTrienKhai
+                    ? `<div class="p-2.5 rounded-xl bg-indigo-50/80 border border-indigo-200/90 text-xs text-indigo-950 whitespace-pre-line leading-relaxed">
+                        <span class="font-extrabold text-indigo-800 block mb-0.5">➔ Bước triển khai tiếp:</span>${escapeHtml(t.cacBuocTrienKhai)}
+                      </div>`
+                    : ""
+                }
+              </td>
+
+              <!-- Cột 4: Phụ Trách & Trạng Thái -->
+              <td class="py-3.5 px-3 align-top space-y-2">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-6 h-6 rounded-full text-xs font-extrabold flex items-center justify-center shrink-0 ${getStaffBadgeClasses(t.phuTrach)}">
+                    ${escapeHtml((t.phuTrach || "?").charAt(0))}
+                  </span>
+                  <select data-inline-staff="${escapeHtml(t.id)}" aria-label="Đổi người phụ trách"
+                    class="inline-staff-select w-full px-2 py-1.5 rounded-lg bg-slate-50 hover:bg-white border border-slate-200 text-xs font-bold text-slate-800 focus:border-blue-600 outline-none cursor-pointer">
+                    ${ALL_STAFF.map(
+                      (s) => `<option value="${escapeHtml(s)}" ${t.phuTrach === s ? "selected" : ""}>${escapeHtml(s)}</option>`
+                    ).join("")}
+                  </select>
+                </div>
+
+                <select data-inline-status="${escapeHtml(t.id)}" aria-label="Đổi trạng thái hồ sơ"
+                  class="inline-status-select w-full px-2.5 py-1.5 rounded-lg border text-xs font-bold outline-none cursor-pointer transition ${getStatusColorClasses(t.trangThai)}">
+                  ${ALL_STATUSES.map(
+                    (st) => `<option value="${escapeHtml(st)}" class="bg-white text-slate-900 font-semibold" ${t.trangThai === st ? "selected" : ""}>${escapeHtml(st)}</option>`
+                  ).join("")}
+                </select>
+
+                ${
+                  deadlineInfo.deadlineBadge || deadlineInfo.cnvgBadge
+                    ? `<div class="flex flex-wrap gap-1 pt-0.5">
+                        ${
+                          deadlineInfo.deadlineBadge
+                            ? `<span class="inline-block px-2 py-0.5 rounded-md border text-[11px] font-bold ${deadlineInfo.deadlineBadge.cls}">
+                                ${escapeHtml(deadlineInfo.deadlineBadge.label)}
+                              </span>`
+                            : ""
+                        }
+                        ${
+                          deadlineInfo.cnvgBadge
+                            ? `<span class="inline-block px-2 py-0.5 rounded-md border text-[11px] font-bold ${deadlineInfo.cnvgBadge.cls}">
+                                ${escapeHtml(deadlineInfo.cnvgBadge.label)}
+                              </span>`
+                            : ""
+                        }
+                      </div>`
+                    : ""
+                }
+              </td>
+
+              <!-- Cột 5: Việc Hôm Nay & Nhắc Nhở + Mở Chi Tiết -->
+              <td class="py-3.5 px-3.5 align-top space-y-2">
+                ${
+                  hasDaily
+                    ? `<div class="text-xs font-semibold text-amber-950 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-xl leading-snug whitespace-pre-line">
+                        <span class="font-extrabold text-amber-700">⚡ Hôm nay:</span> ${escapeHtml(t.viecCanLam)}
+                      </div>`
+                    : t.trangThai !== "8. Hủy"
+                      ? `<div>
+                          <button type="button" data-toggle-inline-daily="${escapeHtml(t.id)}"
+                            class="toggle-inline-daily-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-dashed border-amber-300 text-xs font-bold transition cursor-pointer">
+                            <span>+ Việc hôm nay</span>
+                          </button>
+                          <div id="inlineDailyBox_${escapeHtml(t.id)}" class="hidden mt-1.5 flex items-center gap-1">
+                            <input type="text" id="inlineDailyInput_${escapeHtml(t.id)}" data-inline-daily-input="${escapeHtml(t.id)}"
+                              placeholder="Nhập việc hôm nay..."
+                              class="inline-daily-input w-full px-2.5 py-1 rounded-lg bg-white border border-amber-400 text-xs text-slate-900 focus:outline-none" />
+                            <button type="button" data-save-inline-daily="${escapeHtml(t.id)}"
+                              class="save-inline-daily-btn px-2 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shrink-0 cursor-pointer">
+                              Lưu
+                            </button>
+                            <button type="button" data-cancel-inline-daily="${escapeHtml(t.id)}"
+                              class="cancel-inline-daily-btn px-1.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold shrink-0 cursor-pointer">
+                              ✕
+                            </button>
+                          </div>
+                        </div>`
+                      : ""
+                }
+                ${
+                  nextReminder
+                    ? `<div class="text-xs font-semibold text-purple-950 bg-purple-50 border border-purple-200 px-2.5 py-1.5 rounded-xl leading-snug flex items-start justify-between gap-1.5">
+                        <div>
+                          <span class="font-extrabold text-purple-800">📅 Nhắc ${escapeHtml(formatIsoToVNDate(nextReminder.dateISO))}:</span>
+                          <span>${escapeHtml(nextReminder.text)}</span>
+                        </div>
+                        ${
+                          sortedReminders.length > 1
+                            ? `<span class="px-1.5 py-0.5 rounded-full bg-purple-200 text-purple-900 text-[10px] font-extrabold shrink-0">+${sortedReminders.length - 1}</span>`
+                            : ""
+                        }
+                      </div>`
+                    : ""
+                }
+                ${
+                  t.nhacNho
+                    ? `<div class="text-xs text-slate-600 bg-slate-100/90 px-2.5 py-1 rounded-lg leading-snug">
+                        <span class="font-bold text-slate-700">Nhắc:</span> ${escapeHtml(t.nhacNho)}
+                      </div>`
+                    : ""
+                }
+
+                <!-- Tóm tắt gọn Thu phí / VAT / HĐ + Nút Mở Chi Tiết -->
+                <div class="pt-1 flex items-center justify-between gap-2 flex-wrap">
+                  <div class="flex items-center gap-1 flex-wrap text-[11px] font-bold">
+                    <span class="px-2 py-0.5 rounded border ${getPaymentBadgeClasses(t.thanhToan)}">
+                      ${t.thanhToan === "Đã thanh toán 100%" ? "Thu 100%" : t.thanhToan === "Đã thanh toán 70%" ? "Thu 70%" : "Chưa thu"}
+                    </span>
+                    ${t.daXuatVAT ? `<span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">✓ VAT</span>` : ""}
+                    ${t.coHDDVPL ? `<span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">✓ HĐ</span>` : ""}
+                  </div>
+
+                  <button type="button" data-open-detail="${escapeHtml(t.id)}"
+                    class="open-detail-btn inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-blue-700 text-white text-xs font-bold transition cursor-pointer shrink-0">
+                    <span>Chi tiết</span>
+                    ${
+                      logCount > 0
+                        ? `<span class="px-1.5 py-0.2 rounded-full bg-blue-500 text-white text-[10px] font-extrabold">${logCount}</span>`
+                        : ""
+                    }
+                  </button>
+                </div>
+              </td>
+            </tr>
+          `;
+        })
+        .join("");
+
+      tbody.querySelectorAll(".toggle-inline-daily-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute("data-toggle-inline-daily");
+          btn.classList.add("hidden");
+          const box = document.getElementById(`inlineDailyBox_${id}`);
+          const inp = document.getElementById(`inlineDailyInput_${id}`);
+          if (box) box.classList.remove("hidden");
+          if (inp) inp.focus();
+        });
+      });
+
+      tbody.querySelectorAll(".cancel-inline-daily-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute("data-cancel-inline-daily");
+          const box = document.getElementById(`inlineDailyBox_${id}`);
+          const toggleBtn = tbody.querySelector(`[data-toggle-inline-daily="${id}"]`);
+          if (box) box.classList.add("hidden");
+          if (toggleBtn) toggleBtn.classList.remove("hidden");
+        });
+      });
+
+      const saveInlineDaily = async (id) => {
+        const inp = document.getElementById(`inlineDailyInput_${id}`);
+        const val = inp ? inp.value.trim() : "";
+        if (!val) {
+          showToast("Vui lòng nhập nội dung việc cần làm hôm nay.", "warning");
+          return;
+        }
+        await updateTaskWithAutoLog(
+          id,
+          { viecCanLam: val },
+          [`Thêm việc cần làm trong ngày: "${val}"`]
+        );
+        showToast("Đã thêm việc hôm nay!", "success");
+      };
+
+      tbody.querySelectorAll(".save-inline-daily-btn").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          await saveInlineDaily(btn.getAttribute("data-save-inline-daily"));
+        });
+      });
+
+      tbody.querySelectorAll(".inline-daily-input").forEach((inp) => {
+        inp.addEventListener("click", (e) => e.stopPropagation());
+        inp.addEventListener("keydown", async (e) => {
+          e.stopPropagation();
+          if (e.key === "Enter") {
+            e.preventDefault();
+            await saveInlineDaily(inp.getAttribute("data-inline-daily-input"));
+          }
+        });
+      });
+
+      tbody.querySelectorAll(".copy-mst-chip").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          copyTextToClipboard(btn.getAttribute("data-copy-mst"));
+        });
+      });
+
+      tbody.querySelectorAll(".inline-staff-select").forEach((sel) => {
+        sel.addEventListener("click", (e) => e.stopPropagation());
+        sel.addEventListener("change", async (e) => {
+          e.stopPropagation();
+          const id = sel.getAttribute("data-inline-staff");
+          const newStaff = sel.value;
+          const target = state.tasks.find((t) => t.id === id);
+          if (!target || target.phuTrach === newStaff) return;
+          await updateTaskWithAutoLog(
+            id,
+            { phuTrach: newStaff },
+            [`Chuyển người phụ trách từ "${target.phuTrach}" sang "${newStaff}"`]
+          );
+          showToast(`Đã chuyển phụ trách sang ${newStaff}`, "success");
+        });
+      });
+
+      tbody.querySelectorAll(".inline-status-select").forEach((sel) => {
+        sel.addEventListener("click", (e) => e.stopPropagation());
+        sel.addEventListener("change", async (e) => {
+          e.stopPropagation();
+          const id = sel.getAttribute("data-inline-status");
+          const newStatus = sel.value;
+          const target = state.tasks.find((t) => t.id === id);
+          if (!target || target.trangThai === newStatus) return;
+          await updateTaskWithAutoLog(
+            id,
+            { trangThai: newStatus },
+            [`Đổi trạng thái từ "${target.trangThai}" sang "${newStatus}"`]
+          );
+          showToast(`Đã cập nhật trạng thái: ${newStatus}`, "success");
+        });
+      });
+
+      tbody.querySelectorAll(".open-detail-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openDrawer(btn.getAttribute("data-open-detail"));
+        });
+      });
+
+      tbody.querySelectorAll(".desktop-row").forEach((row) => {
+        row.addEventListener("click", (e) => {
+          if (e.target.closest("select") || e.target.closest("button") || e.target.closest("input")) return;
+          openDrawer(row.getAttribute("data-task-id"));
+        });
+      });
+    }
+
+    // =========================================================================
+    // CHUÔNG THÔNG BÁO
+    // =========================================================================
+    function renderNotifications() {
+      const dailyTodayList = state.tasks.filter(
+        (t) => t.viecCanLam && t.viecCanLam.trim() !== "" && t.trangThai !== "8. Hủy"
+      );
+      const deadlineList = state.tasks.filter(
+        (t) => t.ngayDuKien && t.ngayDuKien.trim() !== "" && t.trangThai !== "8. Hủy"
+      );
+
+      const total = dailyTodayList.length + deadlineList.length + state.notifications.length;
+      const badge = document.getElementById("notifBadgeCount");
+      document.getElementById("notifHeaderCount").textContent = total;
+
+      if (total > 0) {
+        badge.textContent = total > 99 ? "99+" : total;
+        badge.classList.remove("hidden");
+      } else {
+        badge.classList.add("hidden");
+      }
+
+      const container = document.getElementById("notifListContainer");
+      let html = "";
+
+      if (state.notifications.length > 0) {
+        html += `<div class="bg-blue-50 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wider text-blue-800">
+          Cập Nhật Tiến Độ Mới Nhất (${state.notifications.length})
+        </div>`;
+        state.notifications.forEach((n) => {
+          html += `
+            <button type="button" data-jump-id="${escapeHtml(n.taskId || "")}"
+              class="notif-item-btn w-full text-left px-4 py-3 hover:bg-blue-50/60 transition flex items-start gap-2.5 cursor-pointer">
+              <span class="w-2 h-2 rounded-full bg-blue-600 mt-1.5 shrink-0"></span>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-xs font-extrabold text-slate-900 truncate">${escapeHtml(n.title)}</span>
+                  <span class="text-[10px] text-slate-400 shrink-0">${escapeHtml(n.timeStr || "")}</span>
+                </div>
+                <p class="text-xs text-slate-600 mt-0.5">${escapeHtml(n.detail)}</p>
+              </div>
+            </button>
+          `;
+        });
+      }
+
+      if (dailyTodayList.length > 0) {
+        html += `<div class="bg-amber-50 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wider text-amber-800">
+          Việc Cần Làm Trong Ngày (${dailyTodayList.length})
+        </div>`;
+        dailyTodayList.forEach((t) => {
+          html += `
+            <button type="button" data-jump-id="${escapeHtml(t.id)}"
+              class="notif-item-btn w-full text-left px-4 py-3 hover:bg-amber-50/70 transition flex items-start gap-2.5 cursor-pointer">
+              <span class="w-2 h-2 rounded-full bg-amber-600 mt-1.5 shrink-0"></span>
+              <div class="min-w-0">
+                <p class="text-xs font-extrabold text-slate-900 truncate">#${t.stt} • ${escapeHtml(t.tenDoanhNghiep)}</p>
+                <p class="text-xs font-semibold text-amber-900 mt-0.5">⚡ ${escapeHtml(t.viecCanLam)}</p>
+                <span class="text-[11px] text-slate-400">Phụ trách: ${escapeHtml(t.phuTrach)}</span>
+              </div>
+            </button>
+          `;
+        });
+      }
+
+      if (deadlineList.length > 0) {
+        html += `<div class="bg-indigo-50 px-4 py-2 text-[11px] font-extrabold uppercase tracking-wider text-indigo-800">
+          Ngày Dự Kiến Có Kết Quả (${deadlineList.length})
+        </div>`;
+        deadlineList.forEach((t) => {
+          html += `
+            <button type="button" data-jump-id="${escapeHtml(t.id)}"
+              class="notif-item-btn w-full text-left px-4 py-3 hover:bg-indigo-50/70 transition flex items-start gap-2.5 cursor-pointer">
+              <span class="w-2 h-2 rounded-full bg-indigo-500 mt-1.5 shrink-0"></span>
+              <div class="min-w-0">
+                <p class="text-xs font-extrabold text-slate-900 truncate">#${t.stt} • ${escapeHtml(t.tenDoanhNghiep)}</p>
+                <p class="text-xs font-semibold text-indigo-800 mt-0.5">Dự kiến KQ: ${escapeHtml(t.ngayDuKien)} (${escapeHtml(t.phuTrach)})</p>
+              </div>
+            </button>
+          `;
+        });
+      }
+
+      container.innerHTML = html || `<div class="p-8 text-center text-xs text-slate-400">Chưa có thông báo mới.</div>`;
+
+      container.querySelectorAll(".notif-item-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const tid = btn.getAttribute("data-jump-id");
+          document.getElementById("notifPanel").classList.add("hidden");
+          if (tid) openDrawer(tid);
+        });
+      });
+    }
+
+    function renderAll() {
+      renderDailyFocusPanel();
+      updateViewButtonsUI();
+      renderMainWorkspace();
+      renderNotifications();
+    }
+
+    // =========================================================================
+    // SLIDE-OVER DRAWER CHI TIẾT & TỰ ĐỘNG LOG
+    // =========================================================================
+    function openDrawer(taskId) {
+      const task = state.tasks.find((t) => t.id === taskId);
+      if (!task) return;
+
+      state.selectedTaskId = taskId;
+      populateDrawer(task);
+
+      document.getElementById("drawerBackdrop").classList.remove("hidden");
+      document.getElementById("detailDrawer").classList.remove("translate-x-full");
+    }
+
+    function closeDrawer() {
+      state.selectedTaskId = null;
+      document.getElementById("drawerBackdrop").classList.add("hidden");
+      document.getElementById("detailDrawer").classList.add("translate-x-full");
+      document.getElementById("drawerRawLogTextarea").classList.add("hidden");
+    }
+
+    function updateDrawerVatSwitchUI(isOn) {
+      const btn = document.getElementById("drawerVatToggle");
+      const knob = document.getElementById("drawerVatKnob");
+      const hint = document.getElementById("drawerVatHint");
+
+      btn.setAttribute("aria-checked", String(isOn));
+      if (isOn) {
+        btn.classList.remove("bg-slate-300");
+        btn.classList.add("bg-emerald-600");
+        knob.classList.remove("translate-x-0");
+        knob.classList.add("translate-x-5");
+        hint.textContent = "✓ Đã xuất hóa đơn VAT";
+        hint.className = "text-xs font-bold text-emerald-700";
+      } else {
+        btn.classList.remove("bg-emerald-600");
+        btn.classList.add("bg-slate-300");
+        knob.classList.remove("translate-x-5");
+        knob.classList.add("translate-x-0");
+        hint.textContent = "Chưa xuất hóa đơn VAT";
+        hint.className = "text-xs font-semibold text-slate-500";
+      }
+    }
+
+    function updateDrawerSwitchUI(isOn) {
+      const btn = document.getElementById("drawerHddvplToggle");
+      const knob = document.getElementById("drawerHddvplKnob");
+      const hint = document.getElementById("drawerHddvplHint");
+
+      btn.setAttribute("aria-checked", String(isOn));
+      if (isOn) {
+        btn.classList.remove("bg-slate-300");
+        btn.classList.add("bg-blue-600");
+        knob.classList.remove("translate-x-0");
+        knob.classList.add("translate-x-5");
+        hint.textContent = "✓ Đã có HĐDVPL";
+        hint.className = "text-xs font-bold text-blue-700";
+      } else {
+        btn.classList.remove("bg-blue-600");
+        btn.classList.add("bg-slate-300");
+        knob.classList.remove("translate-x-5");
+        knob.classList.add("translate-x-0");
+        hint.textContent = "Chưa có HĐDVPL";
+        hint.className = "text-xs font-semibold text-slate-500";
+      }
+    }
+
+    function populateDrawer(task) {
+      document.getElementById("drawerSttChip").textContent = `STT #${task.stt}`;
+      document.getElementById("drawerMstChip").textContent = task.mst ? `MST: ${task.mst}` : "Chưa có MST";
+      document.getElementById("drawerTitle").textContent = task.tenDoanhNghiep;
+
+      const logDateInput = document.getElementById("manualLogDate");
+      if (logDateInput && !logDateInput.value) {
+        logDateInput.value = getTodayIsoDate();
+      }
+      const remDateInput = document.getElementById("newReminderDate");
+      if (remDateInput && !remDateInput.value) {
+        remDateInput.value = getTomorrowIsoDate();
+      }
+
+      const logList = document.getElementById("drawerLogList");
+      const lines = (task.nhatKyTienDo || "")
+        .split("\n")
+        .map((l) => l.trim())
+        .filter(Boolean);
+
+      if (lines.length === 0) {
+        logList.innerHTML = `<p class="text-xs text-slate-400 italic">Chưa có lịch sử nhật ký tiến độ.</p>`;
+      } else {
+        logList.innerHTML = lines
+          .map((line, idx) => {
+            const isAuto = line.startsWith("[");
+            return `
+              <div class="flex items-start gap-2.5 p-2.5 rounded-xl border ${idx === 0 ? "bg-blue-50/70 border-blue-200" : "bg-slate-50 border-slate-100"}">
+                <span class="w-2 h-2 rounded-full mt-1.5 shrink-0 ${isAuto ? "bg-blue-600" : "bg-slate-400"}"></span>
+                <p class="text-xs ${idx === 0 ? "font-bold text-slate-900" : "text-slate-700"} leading-relaxed break-words">
+                  ${escapeHtml(line)}
+                </p>
+              </div>
+            `;
+          })
+          .join("");
+      }
+
+      document.getElementById("drawerRawLogTextarea").value = task.nhatKyTienDo || "";
+
+      const reminderListEl = document.getElementById("drawerReminderList");
+      const sortedReminders = getSortedFutureReminders(task);
+      if (reminderListEl) {
+        if (sortedReminders.length === 0) {
+          reminderListEl.innerHTML = `<p class="text-xs text-purple-700/70 italic">Chưa đặt lịch nhắc tương lai nào. Chọn ngày và nội dung ở trên rồi bấm "+ Thêm nhắc".</p>`;
+        } else {
+          reminderListEl.innerHTML = sortedReminders
+            .map((rem) => {
+              const badge = getReminderStatusBadge(rem.dateISO);
+              const dateVN = formatIsoToVNDate(rem.dateISO) || rem.dateISO;
+              return `
+                <div class="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-white border border-purple-200 shadow-2xs">
+                  <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      <span class="px-2 py-0.5 rounded-md bg-purple-900 text-white text-[11px] font-extrabold">
+                        📅 ${escapeHtml(dateVN)}
+                      </span>
+                      <span class="px-2 py-0.5 rounded-md border text-[10px] font-bold ${badge.cls}">
+                        ${escapeHtml(badge.label)}
+                      </span>
+                    </div>
+                    <p class="text-xs font-semibold text-slate-900 mt-1 break-words leading-snug">
+                      ${escapeHtml(rem.text)}
+                    </p>
+                  </div>
+                  <div class="flex items-center gap-1 shrink-0">
+                    <button type="button" data-done-rem-id="${escapeHtml(rem.id)}" title="Đánh dấu đã làm & chuyển vào Nhật ký tiến độ"
+                      class="done-rem-btn px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition cursor-pointer">
+                      ✓ Đã làm
+                    </button>
+                    <button type="button" data-del-rem-id="${escapeHtml(rem.id)}" title="Xóa lịch nhắc này"
+                      class="del-rem-btn px-2 py-1 rounded-lg bg-slate-100 hover:bg-red-100 text-slate-600 hover:text-red-700 text-[11px] font-bold transition cursor-pointer">
+                      Xóa
+                    </button>
+                  </div>
+                </div>
+              `;
+            })
+            .join("");
+
+          reminderListEl.querySelectorAll(".done-rem-btn").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+              const remId = btn.getAttribute("data-done-rem-id");
+              const current = state.tasks.find((t) => t.id === state.selectedTaskId);
+              if (!current) return;
+              const targetRem = (current.lichNhacNho || []).find((r) => r.id === remId);
+              if (!targetRem) return;
+              const nextList = (current.lichNhacNho || []).filter((r) => r.id !== remId);
+              const dateVN = formatIsoToVNDate(targetRem.dateISO) || targetRem.dateISO;
+              await updateTaskWithAutoLog(
+                current.id,
+                { lichNhacNho: nextList },
+                [`Hoàn thành lịch nhắc (Ngày ${dateVN}): "${targetRem.text}"`]
+              );
+              showToast("Đã hoàn thành lịch nhắc & ghi vào Nhật Ký Tiến Độ!", "success");
+            });
+          });
+
+          reminderListEl.querySelectorAll(".del-rem-btn").forEach((btn) => {
+            btn.addEventListener("click", async () => {
+              const remId = btn.getAttribute("data-del-rem-id");
+              const current = state.tasks.find((t) => t.id === state.selectedTaskId);
+              if (!current) return;
+              const nextList = (current.lichNhacNho || []).filter((r) => r.id !== remId);
+              await updateTaskWithAutoLog(current.id, { lichNhacNho: nextList }, []);
+              showToast("Đã xóa mốc nhắc nhở.", "info");
+            });
+          });
+        }
+      }
+
+      const legacyWrapper = document.getElementById("legacyReminderWrapper");
+      if (legacyWrapper) {
+        if (task.nhacNho && task.nhacNho.trim()) {
+          legacyWrapper.classList.remove("hidden");
+        } else {
+          legacyWrapper.classList.add("hidden");
+        }
+      }
+
+      document.getElementById("editTenDN").value = task.tenDoanhNghiep || "";
+      document.getElementById("editMST").value = task.mst || "";
+      document.getElementById("editPhuTrach").value = task.phuTrach || "Chi Trần";
+      document.getElementById("editTrangThai").value = task.trangThai || "1. Soạn hồ sơ";
+      document.getElementById("editNoiDung").value = task.noiDung || "";
+      document.getElementById("editCacBuocTrienKhai").value = task.cacBuocTrienKhai || "";
+      document.getElementById("editThanhToan").value = task.thanhToan || "Chưa thanh toán";
+      document.getElementById("editNgayDuKien").value = task.ngayDuKien || "";
+      updateDrawerVatSwitchUI(Boolean(task.daXuatVAT));
+      updateDrawerSwitchUI(Boolean(task.coHDDVPL));
+      document.getElementById("editViecCanLam").value = task.viecCanLam || "";
+      document.getElementById("editNhacNho").value = task.nhacNho || "";
+      document.getElementById("editLienHe").value = task.lienHe || "";
+    }
+
+    // =========================================================================
+    // XUẤT BÁO CÁO EXCEL (.XLSX) 2 SHEET CHUẨN GỬI SẾP
+    // =========================================================================
+    function handleExportExcel() {
+      if (typeof XLSX === "undefined") {
+        showToast("Thư viện xuất Excel đang tải, vui lòng thử lại sau giây lát.", "warning");
+        return;
+      }
+
+      const filtered = getFilteredTasks();
+      if (filtered.length === 0) {
+        showToast("Không có dữ liệu hồ sơ để xuất Excel.", "warning");
+        return;
+      }
+
+      const wb = XLSX.utils.book_new();
+      const now = new Date();
+      const dateStr = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
+      const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+
+      const activeDailyTasks = filtered.filter(
+        (t) => t.viecCanLam && t.viecCanLam.trim() !== "" && t.trangThai !== "8. Hủy"
+      );
+      const summarySheetData = [
+        ["BÁO CÁO TỔNG HỢP HỒ SƠ PHÁP LÝ - TEAM CHI (LUẬT VIỆT PHÚ)"],
+        [`Thời điểm xuất: ${dateStr} ${timeStr}`, `Người xuất: ${state.activeUser}`, `Tổng số hồ sơ báo cáo: ${filtered.length}`],
+        [],
+        ["I. THỐNG KÊ THU PHÍ, HÓA ĐƠN VAT & HỢP ĐỒNG (HĐDVPL)", "Số Lượng"],
+        ...ALL_PAYMENTS.map((pay) => [pay, filtered.filter((t) => t.thanhToan === pay).length]),
+        ["Đã xuất hóa đơn VAT", filtered.filter((t) => Boolean(t.daXuatVAT)).length],
+        ["Chưa xuất hóa đơn VAT", filtered.filter((t) => !Boolean(t.daXuatVAT)).length],
+        ["Đã có HĐDVPL", filtered.filter((t) => Boolean(t.coHDDVPL)).length],
+        ["Chưa có HĐDVPL", filtered.filter((t) => !Boolean(t.coHDDVPL)).length],
+        [],
+        ["II. DANH SÁCH HỒ SƠ CÓ VIỆC CẦN LÀM TRONG NGÀY", "Phụ Trách", "Trạng Thái", "Việc Cần Làm Trong Ngày"],
+        ...(activeDailyTasks.length > 0
+          ? activeDailyTasks.map((w) => [`#${w.stt} - ${w.tenDoanhNghiep}`, w.phuTrach, w.trangThai, w.viecCanLam])
+          : [["Không có việc cần làm trong ngày", "", "", ""]])
+      ];
+
+      const wsSummary = XLSX.utils.aoa_to_sheet(summarySheetData);
+      wsSummary["!cols"] = [{ wch: 48 }, { wch: 18 }, { wch: 22 }, { wch: 42 }, { wch: 20 }];
+      XLSX.utils.book_append_sheet(wb, wsSummary, "Báo Cáo Tổng Hợp");
+
+      const headers = [
+        "STT",
+        "Tên Doanh Nghiệp / Nhãn Hiệu",
+        "Mã Số Thuế / Số Đơn",
+        "Nội Dung Công Việc",
+        "Các Bước Triển Khai Tiếp Theo",
+        "Phụ Trách",
+        "Trạng Thái",
+        "Việc Cần Làm Trong Ngày",
+        "Nhắc Nhở",
+        "Dự Kiến KQ",
+        "Tiến Độ Thu Phí",
+        "Xuất Hóa Đơn VAT",
+        "Có HĐDVPL",
+        "Thông Tin Liên Hệ / Cán Bộ Thuế",
+        "Nhật Ký Tiến Độ"
+      ];
+
+      const rows = filtered.map((t) => {
+        const futureLines = getSortedFutureReminders(t).map(
+          (r) => `[${formatIsoToVNDate(r.dateISO)}] ${r.text}`
+        );
+        const combinedReminders = [
+          ...futureLines,
+          t.nhacNho && t.nhacNho.trim() ? t.nhacNho.trim() : ""
+        ]
+          .filter(Boolean)
+          .join("\n");
+
+        return [
+          t.stt,
+          t.tenDoanhNghiep || "",
+          t.mst || "",
+          t.noiDung || "",
+          t.cacBuocTrienKhai || "",
+          t.phuTrach || "",
+          t.trangThai || "",
+          t.viecCanLam || "",
+          combinedReminders,
+          t.ngayDuKien || "",
+          t.thanhToan || "Chưa thanh toán",
+          t.daXuatVAT ? "Đã xuất VAT" : "Chưa xuất VAT",
+          t.coHDDVPL ? "Có HĐDVPL" : "Chưa có",
+          t.lienHe || "",
+          t.nhatKyTienDo || ""
+        ];
+      });
+
+      const wsDetail = XLSX.utils.aoa_to_sheet([
+        [`DANH SÁCH CHI TIẾT HỒ SƠ PHÁP LÝ - TEAM CHI (${dateStr})`],
+        [],
+        headers,
+        ...rows
+      ]);
+
+      wsDetail["!cols"] = [
+        { wch: 6 },
+        { wch: 42 },
+        { wch: 18 },
+        { wch: 36 },
+        { wch: 44 },
+        { wch: 16 },
+        { wch: 22 },
+        { wch: 36 },
+        { wch: 36 },
+        { wch: 16 },
+        { wch: 20 },
+        { wch: 18 },
+        { wch: 16 },
+        { wch: 38 },
+        { wch: 52 }
+      ];
+
+      XLSX.utils.book_append_sheet(wb, wsDetail, "Chi Tiết Công Việc");
+
+      const fileDate = `${String(now.getDate()).padStart(2, "0")}-${String(now.getMonth() + 1).padStart(2, "0")}-${now.getFullYear()}`;
+      XLSX.writeFile(wb, `Bao_Cao_Cong_Viec_Team_Chi_${fileDate}.xlsx`);
+      showToast(`Đã xuất file Excel báo cáo (${filtered.length} hồ sơ)!`, "success");
+    }
+
+    // =========================================================================
+    // NHẬP & ĐỒNG BỘ DỮ LIỆU TỪ FILE EXCEL (.XLSX / .CSV) TẢI TỪ GOOGLE SHEET
+    // =========================================================================
+    function sanitizeContactInfo(rawText) {
+      if (!rawText) return "";
+      const sensitivePattern = /(^|\s)(tk|mk|mật khẩu|mat khau|pass|passcode|tài khoản thuế|tài khoản đăng nhập|tên đăng nhập)\s*[:\-]/i;
+      return String(rawText)
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line && !sensitivePattern.test(line))
+        .join("; ");
+    }
+
+    function normalizeImportedStatus(rawStatus) {
+      const s = String(rawStatus || "").trim();
+      if (!s) return "1. Soạn hồ sơ";
+      const exact = ALL_STATUSES.find((st) => st.toLowerCase() === s.toLowerCase());
+      if (exact) return exact;
+      if (s.includes("1.")) return "1. Soạn hồ sơ";
+      if (s.includes("2.")) return "2. Chờ khách ký";
+      if (s.includes("3.")) return "3. Nộp hồ sơ";
+      if (s.includes("4.")) return "4. Đã nộp - Chờ KQ";
+      if (s.includes("6.") || s.toLowerCase().includes("chấp thuận")) return "6. Đã chấp thuận";
+      if (s.toLowerCase().includes("lưu")) return "Chờ làm hồ sơ lưu";
+      if (s.includes("8.") || s.toLowerCase().includes("hủy")) return "8. Hủy";
+      return "1. Soạn hồ sơ";
+    }
+
+    function normalizeImportedStaff(rawStaff) {
+      const s = String(rawStaff || "").trim();
+      if (!s) return "Chi Trần";
+      const exact = ALL_STAFF.find((st) => st.toLowerCase() === s.toLowerCase());
+      return exact || s;
+    }
+
+    async function handleImportExcelFile(file) {
+      if (!file) return;
+      if (typeof XLSX === "undefined") {
+        showToast("Thư viện đọc Excel đang tải, vui lòng thử lại sau giây lát.", "warning");
+        return;
+      }
+
+      try {
+        const buffer = await file.arrayBuffer();
+        const wb = XLSX.read(buffer, { type: "array" });
+
+        let targetSheetName = wb.SheetNames.find((name) => {
+          const upper = name.toUpperCase();
+          return (
+            !upper.includes("THÔNG TIN LÀM VIỆC") &&
+            !upper.includes("THONG_TIN_MAT") &&
+            !upper.includes("BÁO CÁO TỔNG HỢP") &&
+            (upper.includes("DANH_SACH") || upper.includes("CHI TIẾT") || upper.includes("CONG_VIEC"))
+          );
+        });
+        if (!targetSheetName) {
+          targetSheetName = wb.SheetNames.find((name) => {
+            const upper = name.toUpperCase();
+            return !upper.includes("THÔNG TIN LÀM VIỆC") && !upper.includes("BÁO CÁO TỔNG HỢP");
+          }) || wb.SheetNames[0];
+        }
+
+        const sheet = wb.Sheets[targetSheetName];
+        const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+
+        let headerRowIdx = -1;
+        for (let i = 0; i < Math.min(matrix.length, 15); i++) {
+          const rowText = matrix[i].map((c) => String(c || "").trim().toLowerCase());
+          if (rowText.some((c) => c === "stt") && rowText.some((c) => c.includes("tên doanh nghiệp"))) {
+            headerRowIdx = i;
+            break;
+          }
+        }
+
+        if (headerRowIdx === -1) {
+          showToast("Không tìm thấy dòng tiêu đề 'STT' và 'Tên Doanh Nghiệp' trong file Excel.", "error");
+          return;
+        }
+
+        const headers = matrix[headerRowIdx].map((h) => String(h || "").trim().toLowerCase());
+        const findCol = (...keywords) =>
+          headers.findIndex((h) => keywords.some((kw) => h === kw || h.includes(kw)));
+
+        const colIdx = {
+          stt: findCol("stt"),
+          tenDN: findCol("tên doanh nghiệp"),
+          mst: findCol("mst", "mã số thuế"),
+          noiDung: findCol("nội dung"),
+          phuTrach: findCol("phụ trách"),
+          trangThai: findCol("trạng thái"),
+          viecCanLam: findCol("việc cần làm"),
+          nhatKy: findCol("nhật ký"),
+          ngayDuKien: findCol("dự kiến"),
+          cacBuoc: findCol("các bước triển khai"),
+          nhacNho: findCol("nhắc nhở"),
+          thanhToan: findCol("thanh toán", "thu phí"),
+          vat: findCol("vat"),
+          thongTinLuu: findCol("thông tin cần lưu", "liên hệ"),
+          ghiChu: findCol("ghi chú"),
+          canhBao: findCol("cảnh báo"),
+          hddvpl: findCol("hddvpl", "hợp đồng")
+        };
+
+        let addedCount = 0;
+        let updatedCount = 0;
+        const stamp = formatAutoLogTimestamp();
+
+        for (let r = headerRowIdx + 1; r < matrix.length; r++) {
+          const row = matrix[r];
+          if (!row || row.length === 0) continue;
+
+          const tenDN = colIdx.tenDN >= 0 ? String(row[colIdx.tenDN] || "").trim() : "";
+          const rawStt = colIdx.stt >= 0 ? String(row[colIdx.stt] || "").trim() : "";
+          if (!tenDN) continue;
+
+          const parsedStt = parseInt(rawStt, 10);
+          const rawPay = colIdx.thanhToan >= 0 ? String(row[colIdx.thanhToan] || "").trim() : "";
+          const rawVat = colIdx.vat >= 0 ? String(row[colIdx.vat] || "").trim().toLowerCase() : "";
+          const rawHddvpl = colIdx.hddvpl >= 0 ? String(row[colIdx.hddvpl] || "").trim().toLowerCase() : "";
+          const rawCanhBao = colIdx.canhBao >= 0 ? String(row[colIdx.canhBao] || "").trim() : "";
+          const rawGhiChu = colIdx.ghiChu >= 0 ? String(row[colIdx.ghiChu] || "").trim() : "";
+          const rawThongTinLuu = colIdx.thongTinLuu >= 0 ? String(row[colIdx.thongTinLuu] || "").trim() : "";
+
+          const hasVat =
+            rawVat.includes("đã xuất") ||
+            rawVat === "có" ||
+            rawVat === "true" ||
+            rawPay.toLowerCase().includes("vat");
+
+          let normalizedPay = "Chưa thanh toán";
+          if (rawPay.includes("100%")) normalizedPay = "Đã thanh toán 100%";
+          else if (rawPay.includes("70%")) normalizedPay = "Đã thanh toán 70%";
+
+          const hasHddvpl =
+            rawHddvpl.includes("có") ||
+            rawHddvpl === "true" ||
+            rawHddvpl === "x" ||
+            rawHddvpl === "1";
+
+          const safeContact = sanitizeContactInfo(rawThongTinLuu);
+          const rawDaily = colIdx.viecCanLam >= 0 ? String(row[colIdx.viecCanLam] || "").trim() : "";
+          const combinedDailyTask = [rawDaily, rawCanhBao, rawGhiChu]
+            .filter((v, idx, arr) => v && arr.indexOf(v) === idx)
+            .join("; ");
+
+          const existingIdx = state.tasks.findIndex(
+            (t) =>
+              (!isNaN(parsedStt) && Number(t.stt) === parsedStt) ||
+              t.tenDoanhNghiep.trim().toLowerCase() === tenDN.toLowerCase()
+          );
+
+          const importedFields = {
+            stt: !isNaN(parsedStt) ? parsedStt : state.tasks.length + addedCount + 1,
+            tenDoanhNghiep: tenDN,
+            mst: colIdx.mst >= 0 ? String(row[colIdx.mst] || "").trim() : "",
+            noiDung: colIdx.noiDung >= 0 ? String(row[colIdx.noiDung] || "").trim() : "",
+            cacBuocTrienKhai: colIdx.cacBuoc >= 0 ? String(row[colIdx.cacBuoc] || "").trim() : "",
+            phuTrach: normalizeImportedStaff(colIdx.phuTrach >= 0 ? row[colIdx.phuTrach] : ""),
+            trangThai: normalizeImportedStatus(colIdx.trangThai >= 0 ? row[colIdx.trangThai] : ""),
+            viecCanLam: combinedDailyTask,
+            nhacNho: colIdx.nhacNho >= 0 ? String(row[colIdx.nhacNho] || "").trim() : "",
+            ngayDuKien: colIdx.ngayDuKien >= 0 ? String(row[colIdx.ngayDuKien] || "").trim() : "",
+            thanhToan: normalizedPay,
+            daXuatVAT: hasVat,
+            coHDDVPL: hasHddvpl,
+            lienHe: safeContact,
+            nhatKyTienDo: colIdx.nhatKy >= 0 ? String(row[colIdx.nhatKy] || "").trim() : ""
+          };
+
+          if (existingIdx !== -1) {
+            const oldTask = state.tasks[existingIdx];
+            const merged = normalizeTaskRecord({
+              ...oldTask,
+              ...importedFields,
+              lichNhacNho: oldTask.lichNhacNho || [],
+              nhatKyTienDo:
+                (importedFields.nhatKyTienDo || "").length >= (oldTask.nhatKyTienDo || "").length
+                  ? importedFields.nhatKyTienDo
+                  : oldTask.nhatKyTienDo,
+              updatedAt: Date.now()
+            });
+            state.tasks[existingIdx] = merged;
+            updatedCount++;
+          } else {
+            const newId = !isNaN(parsedStt)
+              ? `seed_${String(parsedStt).padStart(2, "0")}`
+              : `imp_${Date.now()}_${addedCount}`;
+            const created = normalizeTaskRecord({
+              id: newId,
+              ...importedFields,
+              lichNhacNho: [],
+              nhatKyTienDo:
+                importedFields.nhatKyTienDo ||
+                `[${stamp} - ${state.activeUser}]: Nhập hồ sơ từ file Excel Google Sheet`,
+              updatedAt: Date.now()
+            });
+            state.tasks.push(created);
+            addedCount++;
+          }
+        }
+
+        state.tasks.sort((a, b) => (Number(a.stt) || 0) - (Number(b.stt) || 0));
+
+        const pill = document.getElementById("syncStatusPill");
+        if (pill) {
+          pill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span><span>Đã đồng bộ • ${state.tasks.length} hồ sơ</span>`;
+        }
+
+        pushNotification(
+          `Nhập dữ liệu từ Excel (${file.name})`,
+          `Thêm mới ${addedCount} hồ sơ, cập nhật ${updatedCount} hồ sơ (Tổng: ${state.tasks.length} hồ sơ)`
+        );
+        renderAll();
+        showToast(
+          `Đồng bộ Excel thành công: +${addedCount} hồ sơ mới, cập nhật ${updatedCount} hồ sơ!`,
+          "success"
+        );
+
+        if (state.isFirebaseReady && state.db) {
+          const colRef = getTasksCollectionRef();
+          for (const t of state.tasks) {
+            const { id, ...payload } = t;
+            await setDoc(doc(colRef, id), payload, { merge: true });
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi đọc file Excel:", err);
+        showToast("Không thể đọc file Excel này. Vui lòng tải file .xlsx chuẩn từ Google Sheet.", "error");
+      }
+    }
+
+    // =========================================================================
+    // GẮN TOÀN BỘ SỰ KIỆN TƯƠNG TÁC
+    // =========================================================================
+    function bindAllEvents() {
+      // 1. Màn hình khóa mật khẩu nội bộ Team
+      const lockOverlay = document.getElementById("teamLockOverlay");
+      const lockForm = document.getElementById("teamLockForm");
+      const lockPassInput = document.getElementById("teamPasscodeInput");
+      const lockErrorMsg = document.getElementById("teamLockErrorMsg");
+
+      // Khôi phục trạng thái đã mở khóa trong phiên làm việc hiện tại (nếu có)
+      try {
+        const savedUser = sessionStorage.getItem("team_chi_unlocked_user");
+        if (savedUser) {
+          state.activeUser = savedUser;
+          document.getElementById("activeUserSelect").value = savedUser;
+          document.getElementById("lockUserSelect").value = savedUser;
+          lockOverlay.classList.add("hidden");
+        }
+      } catch (e) {}
+
+      const attemptUnlock = () => {
+        const entered = lockPassInput.value.trim().toLowerCase();
+        const expected = TEAM_ACCESS_PASSCODE.trim().toLowerCase();
+        if (entered === expected) {
+          const chosenUser = document.getElementById("lockUserSelect").value;
+          state.activeUser = chosenUser;
+          document.getElementById("activeUserSelect").value = chosenUser;
+          try {
+            sessionStorage.setItem("team_chi_unlocked_user", chosenUser);
+          } catch (e) {}
+          lockPassInput.value = "";
+          lockErrorMsg.classList.add("hidden");
+          lockOverlay.classList.add("hidden");
+          renderDailyFocusPanel();
+          showToast(`Chào ${chosenUser}! Đã mở khóa hệ thống làm việc.`, "success");
+        } else {
+          lockErrorMsg.classList.remove("hidden");
+          lockPassInput.focus();
+          lockPassInput.select();
+        }
+      };
+
+      lockForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        attemptUnlock();
+      });
+
+      document.getElementById("lockScreenBtn").addEventListener("click", () => {
+        try {
+          sessionStorage.removeItem("team_chi_unlocked_user");
+        } catch (e) {}
+        document.getElementById("lockUserSelect").value = state.activeUser;
+        lockOverlay.classList.remove("hidden");
+        lockPassInput.focus();
+      });
+
+      // 2. Active User Selector
+      document.getElementById("activeUserSelect").addEventListener("change", (e) => {
+        state.activeUser = e.target.value;
+        try {
+          sessionStorage.setItem("team_chi_unlocked_user", state.activeUser);
+        } catch (err) {}
+        renderDailyFocusPanel();
+        showToast(`Đã chuyển sang tài khoản thao tác: ${state.activeUser}`, "info");
+      });
+
+      // 3. 2 Main Workspace Tabs Switcher
+      document.querySelectorAll(".main-tab-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.activeMainTab = btn.getAttribute("data-main-tab");
+          updateViewButtonsUI();
+          renderMainWorkspace();
+        });
+      });
+
+      // 4. Tab 2 (Daily Tasks) Filter Pills & Quick Add Daily Task
+      document.querySelectorAll(".daily-staff-pill").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.dailyStaffFilter = btn.getAttribute("data-daily-staff-filter");
+          renderDailyFocusPanel();
+        });
+      });
+
+      document.getElementById("quickAddDailyBtn").addEventListener("click", async () => {
+        const taskId = document.getElementById("quickDailyTaskSelect").value;
+        const text = document.getElementById("quickDailyTaskInput").value.trim();
+        if (!taskId) {
+          showToast("Vui lòng chọn hồ sơ doanh nghiệp trước.", "warning");
+          return;
+        }
+        if (!text) {
+          showToast("Vui lòng nhập nội dung việc cần làm trong ngày.", "warning");
+          return;
+        }
+        const target = state.tasks.find((t) => t.id === taskId);
+        if (!target) return;
+        const mergedDaily = target.viecCanLam && target.viecCanLam.trim()
+          ? `${target.viecCanLam.trim()}; ${text}`
+          : text;
+        await updateTaskWithAutoLog(
+          taskId,
+          { viecCanLam: mergedDaily },
+          [`Thêm việc cần làm trong ngày: "${text}"`]
+        );
+        document.getElementById("quickDailyTaskInput").value = "";
+        showToast(`Đã thêm việc trong ngày cho #${target.stt}!`, "success");
+      });
+
+      // 5. Search Input + Nút Tìm Kiếm + Phím Enter
+      const searchInput = document.getElementById("searchInput");
+      const clearSearchBtn = document.getElementById("clearSearchBtn");
+      const runSearch = () => {
+        state.filters.search = searchInput.value;
+        clearSearchBtn.classList.toggle("hidden", !state.filters.search);
+        renderMainWorkspace();
+      };
+
+      searchInput.addEventListener("input", runSearch);
+      searchInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          runSearch();
+        }
+      });
+      document.getElementById("execSearchBtn").addEventListener("click", () => {
+        runSearch();
+        const count = getFilteredTasks().length;
+        showToast(`Tìm thấy ${count} hồ sơ phù hợp`, "info");
+      });
+      clearSearchBtn.addEventListener("click", () => {
+        searchInput.value = "";
+        state.filters.search = "";
+        clearSearchBtn.classList.add("hidden");
+        renderMainWorkspace();
+      });
+
+      // 6. 3 Dropdown Filters trên Thanh Công Cụ Duy Nhất
+      document.getElementById("filterStaff").addEventListener("change", (e) => {
+        state.filters.staff = e.target.value;
+        renderMainWorkspace();
+      });
+      document.getElementById("filterStatus").addEventListener("change", (e) => {
+        state.filters.status = e.target.value;
+        renderMainWorkspace();
+      });
+      document.getElementById("filterSpecial").addEventListener("change", (e) => {
+        state.filters.special = e.target.value;
+        renderMainWorkspace();
+      });
+
+      // 7. Reset Filters
+      document.getElementById("resetFiltersBtn").addEventListener("click", () => {
+        state.filters = {
+          search: "",
+          staff: "all",
+          status: "all",
+          special: "all"
+        };
+        searchInput.value = "";
+        clearSearchBtn.classList.add("hidden");
+        document.getElementById("filterStaff").value = "all";
+        document.getElementById("filterStatus").value = "all";
+        document.getElementById("filterSpecial").value = "all";
+        renderAll();
+        showToast("Đã đặt lại bộ lọc", "info");
+      });
+
+      // 8. DRAWER EVENTS
+      document.getElementById("closeDrawerBtn").addEventListener("click", closeDrawer);
+      document.getElementById("drawerCancelBtn").addEventListener("click", closeDrawer);
+      document.getElementById("drawerBackdrop").addEventListener("click", closeDrawer);
+
+      document.getElementById("drawerCopyMstBtn").addEventListener("click", () => {
+        const task = state.tasks.find((t) => t.id === state.selectedTaskId);
+        copyTextToClipboard(task ? task.mst : "");
+      });
+
+      document.getElementById("toggleRawLogBtn").addEventListener("click", () => {
+        const textarea = document.getElementById("drawerRawLogTextarea");
+        textarea.classList.toggle("hidden");
+        if (!textarea.classList.contains("hidden")) {
+          textarea.focus();
+        }
+      });
+
+      document.getElementById("toggleLegacyReminderBtn").addEventListener("click", () => {
+        const wrapper = document.getElementById("legacyReminderWrapper");
+        wrapper.classList.toggle("hidden");
+        if (!wrapper.classList.contains("hidden")) {
+          document.getElementById("editNhacNho").focus();
+        }
+      });
+
+      // Add Structured Future Reminder
+      const submitNewReminder = async () => {
+        if (!state.selectedTaskId) return;
+        const task = state.tasks.find((t) => t.id === state.selectedTaskId);
+        if (!task) return;
+
+        const dateVal = document.getElementById("newReminderDate").value;
+        const textVal = document.getElementById("newReminderText").value.trim();
+
+        if (!dateVal) {
+          showToast("Vui lòng chọn ngày dự kiến thực hiện.", "warning");
+          return;
+        }
+        if (!textVal) {
+          showToast("Vui lòng nhập nội dung dự kiến sẽ làm.", "warning");
+          return;
+        }
+
+        const newItem = {
+          id: `rem_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          dateISO: dateVal,
+          text: textVal
+        };
+        const nextList = [...(task.lichNhacNho || []), newItem];
+        const dateVN = formatIsoToVNDate(dateVal);
+
+        await updateTaskWithAutoLog(
+          task.id,
+          { lichNhacNho: nextList },
+          [`Đặt lịch nhắc (Ngày ${dateVN}): "${textVal}"`]
+        );
+        document.getElementById("newReminderText").value = "";
+        showToast(`Đã thêm lịch nhắc ngày ${dateVN}!`, "success");
+      };
+
+      document.getElementById("addReminderBtn").addEventListener("click", submitNewReminder);
+      document.getElementById("newReminderText").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          submitNewReminder();
+        }
+      });
+
+      // Manual Log Entry Button
+      const submitManualLog = async () => {
+        if (!state.selectedTaskId) return;
+        const input = document.getElementById("manualLogInput");
+        const dateInput = document.getElementById("manualLogDate");
+        const val = input.value.trim();
+        if (!val) {
+          showToast("Vui lòng nhập công việc trong ngày vào ô nhật ký.", "warning");
+          return;
+        }
+        const chosenDateVN = formatIsoToVNDate(dateInput ? dateInput.value : "");
+        const logEntry = chosenDateVN ? `[Ngày ${chosenDateVN}] ${val}` : val;
+        await updateTaskWithAutoLog(state.selectedTaskId, {}, [logEntry]);
+        input.value = "";
+        showToast("Đã ghi nhận nhật ký tiến độ mới!", "success");
+      };
+
+      document.getElementById("addManualLogBtn").addEventListener("click", submitManualLog);
+      document.getElementById("manualLogInput").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          submitManualLog();
+        }
+      });
+
+      // Export & Import Excel
+      document.getElementById("exportExcelBtn").addEventListener("click", handleExportExcel);
+
+      const importFileInput = document.getElementById("importExcelFileInput");
+      document.getElementById("importExcelBtn").addEventListener("click", () => {
+        importFileInput.value = "";
+        importFileInput.click();
+      });
+      importFileInput.addEventListener("change", async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (file) {
+          await handleImportExcelFile(file);
+        }
+      });
+
+      // Notification Bell Toggle
+      const notifPanel = document.getElementById("notifPanel");
+      document.getElementById("notifBellBtn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        notifPanel.classList.toggle("hidden");
+      });
+      document.getElementById("closeNotifBtn").addEventListener("click", () => {
+        notifPanel.classList.add("hidden");
+      });
+      document.addEventListener("click", (e) => {
+        if (!notifPanel.classList.contains("hidden") && !notifPanel.contains(e.target)) {
+          notifPanel.classList.add("hidden");
+        }
+      });
+
+      // Drawer Switches
+      document.getElementById("drawerVatToggle").addEventListener("click", () => {
+        const btn = document.getElementById("drawerVatToggle");
+        const isCurrentlyOn = btn.getAttribute("aria-checked") === "true";
+        updateDrawerVatSwitchUI(!isCurrentlyOn);
+      });
+
+      document.getElementById("drawerHddvplToggle").addEventListener("click", () => {
+        const btn = document.getElementById("drawerHddvplToggle");
+        const isCurrentlyOn = btn.getAttribute("aria-checked") === "true";
+        updateDrawerSwitchUI(!isCurrentlyOn);
+      });
+
+      // Drawer Save Changes Button
+      document.getElementById("drawerSaveBtn").addEventListener("click", async () => {
+        if (!state.selectedTaskId) return;
+        const task = state.tasks.find((t) => t.id === state.selectedTaskId);
+        if (!task) return;
+
+        const tenDN = document.getElementById("editTenDN").value.trim();
+        if (!tenDN) {
+          showToast("Tên Doanh Nghiệp không được để trống.", "error");
+          return;
+        }
+
+        const newStatus = document.getElementById("editTrangThai").value;
+        const newPayment = document.getElementById("editThanhToan").value;
+        const newVat = document.getElementById("drawerVatToggle").getAttribute("aria-checked") === "true";
+        const newContract = document.getElementById("drawerHddvplToggle").getAttribute("aria-checked") === "true";
+        const rawLogEdited = document.getElementById("drawerRawLogTextarea").value;
+
+        const autoChanges = [];
+        if (task.trangThai !== newStatus) {
+          autoChanges.push(`Đổi trạng thái từ "${task.trangThai}" sang "${newStatus}"`);
+        }
+        if (task.thanhToan !== newPayment) {
+          autoChanges.push(`Cập nhật tiến độ thu phí sang "${newPayment}"`);
+        }
+        if (Boolean(task.daXuatVAT) !== newVat) {
+          autoChanges.push(newVat ? "Xác nhận Đã xuất hóa đơn VAT" : "Cập nhật: Chưa xuất hóa đơn VAT");
+        }
+        if (Boolean(task.coHDDVPL) !== newContract) {
+          autoChanges.push(newContract ? "Xác nhận Đã có HĐDVPL" : "Cập nhật: Chưa có HĐDVPL");
+        }
+
+        const updates = {
+          tenDoanhNghiep: tenDN,
+          mst: document.getElementById("editMST").value.trim(),
+          phuTrach: document.getElementById("editPhuTrach").value,
+          trangThai: newStatus,
+          noiDung: document.getElementById("editNoiDung").value.trim(),
+          cacBuocTrienKhai: document.getElementById("editCacBuocTrienKhai").value.trim(),
+          thanhToan: newPayment,
+          daXuatVAT: newVat,
+          ngayDuKien: document.getElementById("editNgayDuKien").value.trim(),
+          coHDDVPL: newContract,
+          viecCanLam: document.getElementById("editViecCanLam").value.trim(),
+          nhacNho: document.getElementById("editNhacNho").value.trim(),
+          lienHe: document.getElementById("editLienHe").value.trim(),
+          nhatKyTienDo: rawLogEdited
+        };
+
+        await updateTaskWithAutoLog(state.selectedTaskId, updates, autoChanges);
+        showToast("Đã lưu toàn bộ thông tin hồ sơ!", "success");
+        closeDrawer();
+      });
+
+      // Delete Task Modal
+      const deleteModal = document.getElementById("confirmDeleteModal");
+      document.getElementById("drawerDeleteBtn").addEventListener("click", () => {
+        const task = state.tasks.find((t) => t.id === state.selectedTaskId);
+        if (!task) return;
+        document.getElementById("confirmDeleteMsg").textContent =
+          `Bạn có chắc chắn muốn xóa hồ sơ #${task.stt} - "${task.tenDoanhNghiep}"?`;
+        deleteModal.classList.remove("hidden");
+      });
+      document.getElementById("cancelDeleteBtn").addEventListener("click", () => {
+        deleteModal.classList.add("hidden");
+      });
+      document.getElementById("confirmDeleteBtn").addEventListener("click", async () => {
+        deleteModal.classList.add("hidden");
+        if (state.selectedTaskId) {
+          await deleteTaskById(state.selectedTaskId);
+        }
+      });
+
+      // Add New Task Modal
+      const addModal = document.getElementById("addModal");
+      document.getElementById("openAddModalBtn").addEventListener("click", () => {
+        document.getElementById("addTaskForm").reset();
+        document.getElementById("newPhuTrach").value = state.activeUser;
+        addModal.classList.remove("hidden");
+      });
+      document.getElementById("closeAddModalBtn").addEventListener("click", () => {
+        addModal.classList.add("hidden");
+      });
+      document.getElementById("cancelAddModalBtn").addEventListener("click", () => {
+        addModal.classList.add("hidden");
+      });
+      document.getElementById("addTaskForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const modalRemDate = document.getElementById("newModalReminderDate").value;
+        const modalRemText = document.getElementById("newModalReminderText").value.trim();
+        const initialReminders =
+          modalRemDate && modalRemText
+            ? [{ id: `rem_${Date.now()}`, dateISO: modalRemDate, text: modalRemText }]
+            : [];
+
+        await createNewTask({
+          tenDoanhNghiep: document.getElementById("newTenDN").value,
+          mst: document.getElementById("newMST").value,
+          phuTrach: document.getElementById("newPhuTrach").value,
+          trangThai: document.getElementById("newTrangThai").value,
+          ngayDuKien: document.getElementById("newNgayDuKien").value,
+          noiDung: document.getElementById("newNoiDung").value,
+          cacBuocTrienKhai: document.getElementById("newCacBuocTrienKhai").value,
+          thanhToan: document.getElementById("newThanhToan").value,
+          daXuatVAT: document.getElementById("newDaXuatVAT").checked,
+          coHDDVPL: document.getElementById("newCoHDDVPL").checked,
+          viecCanLam: document.getElementById("newViecCanLam").value,
+          lichNhacNho: initialReminders,
+          lienHe: document.getElementById("newLienHe").value
+        });
+        addModal.classList.add("hidden");
+      });
+    }
+
+    // =========================================================================
+    // KHỞI CHẠY ỨNG DỤNG TỨC THÌ
+    // =========================================================================
+    renderAll();
+    bindAllEvents();
+    initFirestoreBackgroundSync();
+  </script>
+</body>
+</html>
